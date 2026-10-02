@@ -50,7 +50,13 @@ function normalizeAnswers(data = {}) {
       question: normalizePdfText(answer.question || `Question ${index + 1}`),
       definition: normalizePdfText(answer.definition), explanation: normalizePdfText(answer.explanation), points,
       diagram: normalizePdfText(answer.diagram), conclusion: normalizePdfText(answer.conclusion),
-      keywords: (answer.keywords || []).map(normalizePdfText)
+      keywords: (answer.keywords || []).map(normalizePdfText),
+      diagramSpec: {
+        title: normalizePdfText(answer.diagramSpec?.title),
+        layout: ['flow', 'layers', 'tree', 'cycle', 'network'].includes(answer.diagramSpec?.layout) ? answer.diagramSpec.layout : 'none',
+        nodes: Array.isArray(answer.diagramSpec?.nodes) ? answer.diagramSpec.nodes.slice(0, 8).map((node, i) => ({ id: String(node.id || `n${i + 1}`), label: normalizePdfText(node.label), detail: normalizePdfText(node.detail) })) : [],
+        edges: Array.isArray(answer.diagramSpec?.edges) ? answer.diagramSpec.edges.slice(0, 16).map(edge => ({ from: String(edge.from), to: String(edge.to), label: normalizePdfText(edge.label) })) : []
+      }
     };
   });
 }
@@ -64,6 +70,64 @@ function drawArrow(doc, x1, y1, x2, y2, color = '#315D9A') {
     .lineTo(x2 - head * Math.cos(angle - Math.PI / 6), y2 - head * Math.sin(angle - Math.PI / 6))
     .lineTo(x2 - head * Math.cos(angle + Math.PI / 6), y2 - head * Math.sin(angle + Math.PI / 6))
     .closePath().fill().restore();
+}
+
+function drawSpecDiagram(doc, spec, x, y, width) {
+  const nodes = spec.nodes;
+  if (!nodes || nodes.length < 2 || spec.layout === 'none') return 0;
+  const palette = ['#E3F2E9', '#ECE8F6', '#F5E1E3', '#E7EFF9'];
+  const positions = new Map();
+  doc.font('KalamBold').fontSize(9).fillColor('#654C9D').text(spec.title || 'TOPIC STRUCTURE', x, y, { width, align: 'center' });
+  const box = (node, bx, by, bw, bh, index) => {
+    positions.set(node.id, { x: bx, y: by, w: bw, h: bh, cx: bx + bw / 2, cy: by + bh / 2 });
+    doc.save().roundedRect(bx, by, bw, bh, 6).fillAndStroke(palette[index % palette.length], '#7892B5');
+    doc.font('KalamBold').fontSize(9).fillColor('#173F83').text(node.label || node.id, bx + 5, by + 4, { width: bw - 10, height: 17, align: 'center', ellipsis: true });
+    if (node.detail) doc.font('Kalam').fontSize(7.5).fillColor('#315D9A').text(node.detail, bx + 5, by + 20, { width: bw - 10, height: Math.max(10, bh - 23), align: 'center', ellipsis: true });
+    doc.restore();
+  };
+
+  if (spec.layout === 'flow' || spec.layout === 'layers') {
+    const vertical = spec.layout === 'layers' || nodes.length > 4;
+    if (vertical) {
+      const cardW = width * 0.68; const cardH = 32; const gap = 8; const left = x + (width - cardW) / 2;
+      nodes.forEach((node, i) => box(node, left, y + 26 + i * (cardH + gap), cardW, cardH, i));
+      const edges = spec.edges.length ? spec.edges : nodes.slice(1).map((node, i) => ({ from: nodes[i].id, to: node.id }));
+      edges.forEach(edge => { const from = positions.get(edge.from); const to = positions.get(edge.to); if (from && to) drawArrow(doc, from.cx, from.y + from.h, to.cx, to.y, '#55769F'); });
+      return 34 + nodes.length * (cardH + gap);
+    }
+    const gap = 12; const cardW = (width - gap * (nodes.length - 1)) / nodes.length; const cardH = 56;
+    nodes.forEach((node, i) => box(node, x + i * (cardW + gap), y + 27, cardW, cardH, i));
+    const edges = spec.edges.length ? spec.edges : nodes.slice(1).map((node, i) => ({ from: nodes[i].id, to: node.id }));
+    edges.forEach(edge => { const from = positions.get(edge.from); const to = positions.get(edge.to); if (from && to) drawArrow(doc, from.x + from.w, from.cy, to.x, to.cy, '#55769F'); });
+    return 98;
+  }
+
+  if (spec.layout === 'tree') {
+    const root = nodes[0]; const children = nodes.slice(1); const rootW = Math.min(width * 0.42, 150); const childGap = 8;
+    box(root, x + (width - rootW) / 2, y + 20, rootW, 42, 0);
+    const columns = Math.min(children.length, 4); const rows = Math.ceil(children.length / columns); const childW = (width - childGap * (columns - 1)) / columns;
+    children.forEach((node, i) => box(node, x + (i % columns) * (childW + childGap), y + 88 + Math.floor(i / columns) * 53, childW, 43, i + 1));
+    const edges = spec.edges.length ? spec.edges : children.map(node => ({ from: root.id, to: node.id }));
+    edges.forEach(edge => { const from = positions.get(edge.from); const to = positions.get(edge.to); if (from && to) drawArrow(doc, from.cx, from.y + from.h, to.cx, to.y, '#55769F'); });
+    return 101 + rows * 53;
+  }
+
+  if (spec.layout === 'cycle') {
+    const centerX = x + width / 2; const centerY = y + 92; const rx = Math.min(width * 0.36, 170); const ry = 56; const cardW = Math.min(width * 0.31, 125); const cardH = 38;
+    nodes.forEach((node, i) => { const angle = -Math.PI / 2 + i * (Math.PI * 2 / nodes.length); box(node, centerX + Math.cos(angle) * rx - cardW / 2, centerY + Math.sin(angle) * ry - cardH / 2, cardW, cardH, i); });
+    const edges = spec.edges.length ? spec.edges : nodes.map((node, i) => ({ from: node.id, to: nodes[(i + 1) % nodes.length].id }));
+    edges.forEach(edge => { const from = positions.get(edge.from); const to = positions.get(edge.to); if (from && to) drawArrow(doc, from.cx, from.cy, to.cx, to.cy, '#55769F'); });
+    // Repaint cards over the connector tips for a clean, readable cycle.
+    nodes.forEach((node, i) => { const p = positions.get(node.id); box(node, p.x, p.y, p.w, p.h, i); });
+    return 190;
+  }
+
+  const columns = Math.min(4, Math.ceil(Math.sqrt(nodes.length))); const rows = Math.ceil(nodes.length / columns); const gapX = 9; const gapY = 16;
+  const cardW = (width - gapX * (columns - 1)) / columns; const cardH = 49;
+  nodes.forEach((node, i) => box(node, x + (i % columns) * (cardW + gapX), y + 28 + Math.floor(i / columns) * (cardH + gapY), cardW, cardH, i));
+  spec.edges.forEach(edge => { const from = positions.get(edge.from); const to = positions.get(edge.to); if (from && to) drawArrow(doc, from.cx, from.cy, to.cx, to.cy, '#55769F'); });
+  nodes.forEach((node, i) => { const p = positions.get(node.id); box(node, p.x, p.y, p.w, p.h, i); });
+  return 42 + rows * (cardH + gapY);
 }
 
 function drawTopicDiagram(doc, answer, x, y, width) {
@@ -103,6 +167,10 @@ function drawTopicDiagram(doc, answer, x, y, width) {
     });
     text('Signals move forward through weighted connections', x, y + 155, width, 8, '#315D9A');
     return 168;
+  }
+
+  if (answer.diagramSpec.layout !== 'none' && answer.diagramSpec.nodes.length > 1) {
+    return drawSpecDiagram(doc, answer.diagramSpec, x, y, width);
   }
 
   if (/osi|open systems interconnection/.test(topic)) {
@@ -237,10 +305,18 @@ export default function generatePDF(data, fileName, options = {}) {
       }
       {
         const topicText = `${answer.question} ${answer.diagram} ${answer.points.map(point => point.title).join(' ')}`;
-        const recognized = /\bmlp\b|multi[- ]layer perceptron|osi|open systems interconnection|deadlock|circular wait|resource allocation|machine learning|supervised|unsupervised|reinforcement/i.test(topicText);
+        const spec = answer.diagramSpec;
+        const hasStructuredDiagram = spec.layout !== 'none' && spec.nodes.length > 1;
+        const recognized = hasStructuredDiagram || /\bmlp\b|multi[- ]layer perceptron|osi|open systems interconnection|deadlock|circular wait|resource allocation|machine learning|supervised|unsupervised|reinforcement/i.test(topicText);
         const hasDiagramInstruction = Boolean(answer.diagram && !/^not needed\.?$/i.test(answer.diagram.trim()));
         if (recognized || hasDiagramInstruction) {
-          const diagramHeight = /\bmlp\b|multi[- ]layer perceptron/i.test(topicText) ? 168
+          const count = spec.nodes.length;
+          const dynamicHeight = spec.layout === 'cycle' ? 190
+            : spec.layout === 'tree' ? 101 + Math.ceil(Math.max(1, count - 1) / 4) * 53
+              : spec.layout === 'network' ? 42 + Math.ceil(Math.max(1, count) / 4) * 65
+                : count > 4 ? 34 + count * 40 : 110;
+          const diagramHeight = hasStructuredDiagram ? dynamicHeight
+            : /\bmlp\b|multi[- ]layer perceptron/i.test(topicText) ? 168
             : /osi|open systems interconnection/i.test(topicText) ? 174
               : /deadlock|circular wait|resource allocation/i.test(topicText) ? 164
                 : /machine learning|supervised|unsupervised|reinforcement/i.test(topicText) ? 170 : 80;
