@@ -51,8 +51,11 @@ async function downloadPdf({ title, answers, revision }) {
     body: JSON.stringify({ title, answers, revision }), signal: AbortSignal.timeout(60_000)
   });
   if (!response.ok) {
-    const payload = await response.json().catch(() => ({}));
-    throw new Error(payload.error || 'Could not create the PDF. Please try again.');
+    const raw = await response.text();
+    let payload = {};
+    try { payload = JSON.parse(raw); } catch { payload.error = raw.slice(0, 180); }
+    const detail = [payload.details, payload.diagnostic].filter(Boolean).join(' · ');
+    throw new Error([payload.error || `PDF service error (${response.status})`, detail].filter(Boolean).join(' — '));
   }
   if (!response.headers.get('content-type')?.includes('application/pdf')) throw new Error('The server did not return a PDF. Please try again.');
   const blob = await response.blob();

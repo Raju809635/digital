@@ -16,10 +16,9 @@ export default async function handler(request, response) {
     response.setHeader('Content-Length', pdf.length);
     return response.status(200).send(pdf);
   } catch (error) {
-    console.error('[generate-pdf]', error.message);
-    const message = error.code === 'PDF_FONT_MISSING'
-      ? 'The handwritten font is missing from this deployment. Please try again later.'
-      : 'Could not create the PDF. Please try again.';
-    return response.status(500).json({ error: message });
+    console.error('[generate-pdf]', error.stack || error.message);
+    const diagnostic = String(error.code || error.name || 'PDF_ERROR');
+    const details = String(error.message || 'Unknown PDF generation error').replace(/[A-Z]:\\[^\s]+|\/var\/task\/[^\s]+/g, '[server path]').slice(0, 180);
+    return response.status(500).json({ error: 'Could not create the PDF.', diagnostic, details });
   }
 }
