@@ -81,6 +81,30 @@ function drawTopicDiagram(doc, answer, x, y, width) {
     doc.font('Kalam').fontSize(size).fillColor(color).text(label, tx, ty, { width: tw, align, lineGap: 1 });
   };
 
+  if (/\bmlp\b|multi[- ]layer perceptron/.test(topic)) {
+    const layers = [
+      { name: 'INPUT LAYER', cx: x + width * 0.17, ys: [y + 51, y + 83, y + 115], labels: ['x1', 'x2', 'xn'], fill: mint },
+      { name: 'HIDDEN LAYER', cx: x + width * 0.5, ys: [y + 43, y + 67, y + 91, y + 115, y + 139], labels: ['h1', 'h2', 'h3', 'h4', 'hn'], fill: lavender },
+      { name: 'OUTPUT LAYER', cx: x + width * 0.83, ys: [y + 67, y + 103], labels: ['y1', 'yk'], fill: pink }
+    ];
+    text('MULTI-LAYER PERCEPTRON (MLP)', x, y, width, 9, '#654C9D');
+    for (let layerIndex = 0; layerIndex < layers.length - 1; layerIndex++) {
+      const from = layers[layerIndex]; const to = layers[layerIndex + 1];
+      from.ys.forEach(fromY => to.ys.forEach(toY => {
+        doc.save().lineWidth(0.7).strokeColor('#9AAEC9').moveTo(from.cx + 10, fromY).lineTo(to.cx - 10, toY).stroke().restore();
+      }));
+    }
+    layers.forEach(layer => {
+      text(layer.name, layer.cx - width * 0.15, y + 23, width * 0.3, 7.8, ink);
+      layer.ys.forEach((cy, i) => {
+        doc.save().circle(layer.cx, cy, 10).fillAndStroke(layer.fill, '#587AA8');
+        doc.font('KalamBold').fontSize(7.2).fillColor(ink).text(layer.labels[i], layer.cx - 8, cy - 4, { width: 16, align: 'center', lineBreak: false }).restore();
+      });
+    });
+    text('Signals move forward through weighted connections', x, y + 155, width, 8, '#315D9A');
+    return 168;
+  }
+
   if (/osi|open systems interconnection/.test(topic)) {
     const layers = [
       ['7  Application', 'HTTP  ·  DNS'], ['6  Presentation', 'TLS  ·  JPEG'], ['5  Session', 'RPC  ·  NetBIOS'],
@@ -139,25 +163,7 @@ function drawTopicDiagram(doc, answer, x, y, width) {
     return 170;
   }
 
-  const ideas = answer.points.slice(0, 8);
-  const cards = ideas.length ? ideas : [{ title: 'Core idea', desc: answer.definition || answer.explanation || answer.question }];
-  const columns = cards.length === 1 ? 1 : 2;
-  const gapX = 10; const gapY = 8; const cardW = (width - gapX * (columns - 1)) / columns;
-  const cardH = 42; const rows = Math.ceil(cards.length / columns); const cardsY = y + 32;
-  box('QUESTION / KEY IDEAS', x + width * 0.28, y, width * 0.44, 24, '#FFF0D9', 8.5);
-  cards.forEach((idea, i) => {
-    const col = i % columns; const row = Math.floor(i / columns); const bx = x + col * (cardW + gapX); const by = cardsY + row * (cardH + gapY);
-    doc.save().roundedRect(bx, by, cardW, cardH, 6).fillAndStroke(i % 2 ? lavender : mint, '#7892B5');
-    const title = String(idea.title || idea.desc || `Key idea ${i + 1}`).slice(0, 62);
-    const desc = idea.title && idea.desc ? String(idea.desc).slice(0, 95) : '';
-    doc.font('KalamBold').fontSize(8.7).fillColor(ink).text(`${i + 1}. ${title}`, bx + 7, by + 4, { width: cardW - 14, height: 15, ellipsis: true });
-    if (desc) doc.font('Kalam').fontSize(7.7).fillColor('#315D9A').text(desc, bx + 7, by + 20, { width: cardW - 14, height: 18, ellipsis: true });
-    doc.restore();
-    if (row === 0) drawArrow(doc, x + width / 2, y + 25, bx + cardW / 2, by - 1, '#7892B5');
-  });
-  const height = 33 + rows * cardH + (rows - 1) * gapY;
-  text('KEY CONCEPTS FROM THIS ANSWER', x, y + height + 2, width, 8, '#654C9D');
-  return height + 15;
+  return 0;
 }
 
 export default function generatePDF(data, fileName, options = {}) {
@@ -231,16 +237,21 @@ export default function generatePDF(data, fileName, options = {}) {
       }
       {
         const topicText = `${answer.question} ${answer.diagram} ${answer.points.map(point => point.title).join(' ')}`;
-        const diagramHeight = /osi|open systems interconnection/i.test(topicText) ? 174
-          : /deadlock|circular wait|resource allocation/i.test(topicText) ? 164
-            : /machine learning|supervised|unsupervised|reinforcement/i.test(topicText) ? 170
-              : 48 + Math.ceil(Math.min(answer.points.length || 1, 8) / 2) * 50;
-        // Keep the heading with its illustration when a page break is needed.
-        ensureRoom(diagramHeight + 58);
-        heading('Diagram');
-        const diagramY = doc.y;
-        const drawnHeight = drawTopicDiagram(doc, answer, doc.page.margins.left, diagramY, textWidth);
-        doc.y = diagramY + drawnHeight + 8;
+        const recognized = /\bmlp\b|multi[- ]layer perceptron|osi|open systems interconnection|deadlock|circular wait|resource allocation|machine learning|supervised|unsupervised|reinforcement/i.test(topicText);
+        const hasDiagramInstruction = Boolean(answer.diagram && !/^not needed\.?$/i.test(answer.diagram.trim()));
+        if (recognized || hasDiagramInstruction) {
+          const diagramHeight = /\bmlp\b|multi[- ]layer perceptron/i.test(topicText) ? 168
+            : /osi|open systems interconnection/i.test(topicText) ? 174
+              : /deadlock|circular wait|resource allocation/i.test(topicText) ? 164
+                : /machine learning|supervised|unsupervised|reinforcement/i.test(topicText) ? 170 : 80;
+          // Keep the heading with its illustration when a page break is needed.
+          ensureRoom(diagramHeight + 58);
+          heading('Diagram');
+          const diagramY = doc.y;
+          const drawnHeight = drawTopicDiagram(doc, answer, doc.page.margins.left, diagramY, textWidth);
+          if (drawnHeight) doc.y = diagramY + drawnHeight + 8;
+          else paragraph(answer.diagram.replace(/^\[|\]$/g, ''), 13.5, accents.Diagram);
+        }
       }
       if (answer.conclusion) { heading('Conclusion'); paragraph(answer.conclusion, 13.5, accents.Conclusion); }
       if (answer.keywords.length) { heading('Keywords'); paragraph(answer.keywords.join(' - ').toLocaleUpperCase(), 13, accents.Keywords); }
