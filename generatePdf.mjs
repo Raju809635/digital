@@ -10,6 +10,23 @@ const accents = {
   Diagram: '#B16427', Conclusion: '#286747', Keywords: '#A43A51'
 };
 
+function normalizePdfText(value = '') {
+  return String(value).normalize('NFD')
+    .replace(/([A-Za-z])\u0304/g, '$1_mean')
+    .replace(/[₀₁₂₃₄₅₆₇₈₉]/g, char => `_${'₀₁₂₃₄₅₆₇₈₉'.indexOf(char)}`)
+    .replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹]/g, char => `^${'⁰¹²³⁴⁵⁶⁷⁸⁹'.indexOf(char)}`)
+    .replace(/[ᵢⱼₙ]/g, char => ({ 'ᵢ': '_i', 'ⱼ': '_j', 'ₙ': '_n' })[char])
+    .replace(/[βΒ]/g, 'beta').replace(/[εΕ]/g, 'epsilon').replace(/Σ|∑/g, 'SUM')
+    .replace(/[μΜ]/g, 'mu').replace(/[θΘ]/g, 'theta').replace(/[λΛ]/g, 'lambda')
+    .replace(/[αΑ]/g, 'alpha').replace(/[Δδ]/g, 'delta').replace(/[πΠ]/g, 'pi')
+    .replace(/[σ]/g, 'sigma').replace(/[φΦ]/g, 'phi').replace(/[ωΩ]/g, 'omega')
+    .replace(/[×·]/g, '*').replace(/[÷]/g, '/').replace(/[−–—]/g, '-')
+    .replace(/[≤]/g, '<=').replace(/[≥]/g, '>=').replace(/[≠]/g, '!=').replace(/[≈]/g, 'approximately')
+    .replace(/[→⇒]/g, ' to ').replace(/[←]/g, ' from ').replace(/[√]/g, 'sqrt ')
+    .replace(/[∞]/g, 'infinity').replace(/[∈]/g, 'in').replace(/[□]/g, '[symbol]')
+    .replace(/\s{2,}/g, ' ').trim().normalize('NFC');
+}
+
 function fontPath(file) {
   const candidates = [path.join(projectRoot, 'fonts', file), path.join(process.cwd(), 'fonts', file)];
   const match = candidates.find(candidate => fs.existsSync(candidate));
@@ -22,15 +39,15 @@ function normalizeAnswers(data = {}) {
   return source.map((answer, index) => {
     const items = answer.keyPoints || answer.points || [];
     const points = items.map(point => {
-      if (typeof point !== 'string') return { title: String(point.title || ''), desc: String(point.desc || '') };
+      if (typeof point !== 'string') return { title: normalizePdfText(point.title), desc: normalizePdfText(point.desc) };
       const split = point.match(/^([^:–-]{2,55})\s*[:–-]\s*(.+)$/);
-      return split ? { title: split[1].trim(), desc: split[2].trim() } : { title: '', desc: point };
+      return split ? { title: normalizePdfText(split[1]), desc: normalizePdfText(split[2]) } : { title: '', desc: normalizePdfText(point) };
     });
     return {
-      question: String(answer.question || `Question ${index + 1}`),
-      definition: String(answer.definition || ''), explanation: String(answer.explanation || ''), points,
-      diagram: String(answer.diagram || ''), conclusion: String(answer.conclusion || ''),
-      keywords: (answer.keywords || []).map(String)
+      question: normalizePdfText(answer.question || `Question ${index + 1}`),
+      definition: normalizePdfText(answer.definition), explanation: normalizePdfText(answer.explanation), points,
+      diagram: normalizePdfText(answer.diagram), conclusion: normalizePdfText(answer.conclusion),
+      keywords: (answer.keywords || []).map(normalizePdfText)
     };
   });
 }
@@ -185,7 +202,7 @@ export default function generatePDF(data, fileName, options = {}) {
     };
 
     doc.font('KalamBold').fontSize(revision ? 17 : 21).fillColor(blue)
-      .text(String(revision ? 'One-page revision' : data.title || data.subject || 'Exam Answer Notes'), { width: textWidth, align: 'center' });
+      .text(normalizePdfText(revision ? 'One-page revision' : data.title || data.subject || 'Exam Answer Notes'), { width: textWidth, align: 'center' });
     doc.moveDown(0.65);
     answers.forEach((answer, index) => {
       if (!revision) ensureRoom(100);
