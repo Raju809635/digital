@@ -53,10 +53,10 @@ const schema = {
 };
 
 async function generateStudyPlan(input) {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw Object.assign(new Error('Add OPENAI_API_KEY to your .env file, then restart the app.'), { status: 503 });
-  const model = process.env.OPENAI_MODEL || 'gpt-4.1-mini';
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+  const apiKey = process.env.XAI_API_KEY;
+  if (!apiKey) throw Object.assign(new Error('Add XAI_API_KEY to your .env file, then restart the app.'), { status: 503 });
+  const model = process.env.XAI_MODEL || 'grok-4.7';
+  const response = await fetch('https://api.x.ai/v1/chat/completions', {
     method: 'POST',
     headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
     body: JSON.stringify({
@@ -72,7 +72,7 @@ async function generateStudyPlan(input) {
   });
   const result = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const message = result?.error?.message || `OpenAI request failed (${response.status}).`;
+    const message = result?.error?.message || `Grok API request failed (${response.status}).`;
     const status = response.status === 401 ? 502 : response.status === 429 ? 429 : 502;
     throw Object.assign(new Error(message), { status });
   }
@@ -83,10 +83,10 @@ async function generateStudyPlan(input) {
 }
 
 async function evaluateAnswer(input) {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw Object.assign(new Error('Add OPENAI_API_KEY to your .env file, then restart the app.'), { status: 503 });
-  const model = process.env.OPENAI_MODEL || 'gpt-4.1-mini';
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+  const apiKey = process.env.XAI_API_KEY;
+  if (!apiKey) throw Object.assign(new Error('Add XAI_API_KEY to your .env file, then restart the app.'), { status: 503 });
+  const model = process.env.XAI_MODEL || 'grok-4.7';
+  const response = await fetch('https://api.x.ai/v1/chat/completions', {
     method: 'POST', headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
     body: JSON.stringify({ model, temperature: 0, response_format: { type: 'json_schema', json_schema: { name: 'answer_feedback', strict: true, schema: { type: 'object', additionalProperties: false, properties: { correct: { type: 'boolean' }, feedback: { type: 'string' } }, required: ['correct', 'feedback'] } } }, messages: [
       { role: 'system', content: 'Check a students short exam answer against the key. Accept accurate equivalent wording and partial credit. Be kind and brief. Point out one missing scoring keyword if needed.' },
@@ -94,7 +94,7 @@ async function evaluateAnswer(input) {
     ] }), signal: AbortSignal.timeout(30_000)
   });
   const result = await response.json().catch(() => ({}));
-  if (!response.ok) throw Object.assign(new Error(result?.error?.message || `OpenAI request failed (${response.status}).`), { status: response.status === 429 ? 429 : 502 });
+  if (!response.ok) throw Object.assign(new Error(result?.error?.message || `Grok API request failed (${response.status}).`), { status: response.status === 429 ? 429 : 502 });
   try { return JSON.parse(result.choices[0].message.content); }
   catch { throw Object.assign(new Error('Could not read the model feedback. Try again.'), { status: 502 }); }
 }
@@ -107,7 +107,7 @@ const vite = dev ? await (async () => {
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
   if (url.pathname.startsWith('/api/')) {
-    if (req.method === 'GET' && url.pathname === '/api/health') return send(res, 200, { ok: true, configured: Boolean(process.env.OPENAI_API_KEY), model: process.env.OPENAI_MODEL || 'gpt-4.1-mini' });
+    if (req.method === 'GET' && url.pathname === '/api/health') return send(res, 200, { ok: true, configured: Boolean(process.env.XAI_API_KEY), model: process.env.XAI_MODEL || 'grok-4.7' });
     if (req.method === 'POST' && url.pathname === '/api/study-plan') {
       try {
         const input = await bodyJson(req);

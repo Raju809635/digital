@@ -1,4 +1,4 @@
-import { generateStudyPlan } from '../lib/openai.js';
+import { generateStudyPlan } from '../lib/grok.js';
 
 export const config = { maxDuration: 60 };
 

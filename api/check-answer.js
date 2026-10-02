@@ -1,4 +1,4 @@
-import { evaluateAnswer } from '../lib/openai.js';
+import { evaluateAnswer } from '../lib/grok.js';
 
 export const config = { maxDuration: 35 };
 
