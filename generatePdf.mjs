@@ -35,6 +35,73 @@ function normalizeAnswers(data = {}) {
   });
 }
 
+function drawArrow(doc, x1, y1, x2, y2, color = '#315D9A') {
+  const angle = Math.atan2(y2 - y1, x2 - x1);
+  const head = 5;
+  doc.save().strokeColor(color).fillColor(color).lineWidth(1.5)
+    .moveTo(x1, y1).lineTo(x2, y2).stroke()
+    .moveTo(x2, y2)
+    .lineTo(x2 - head * Math.cos(angle - Math.PI / 6), y2 - head * Math.sin(angle - Math.PI / 6))
+    .lineTo(x2 - head * Math.cos(angle + Math.PI / 6), y2 - head * Math.sin(angle + Math.PI / 6))
+    .closePath().fill().restore();
+}
+
+function drawTopicDiagram(doc, answer, x, y, width) {
+  const topic = `${answer.question} ${answer.diagram} ${answer.points.map(point => point.title).join(' ')}`.toLowerCase();
+  const ink = '#173F83';
+  const pink = '#F5E1E3';
+  const mint = '#E3F2E9';
+  const lavender = '#ECE8F6';
+  const box = (label, bx, by, bw, bh, fill = '#F1F5FA', fontSize = 10) => {
+    doc.save().roundedRect(bx, by, bw, bh, 6).fillAndStroke(fill, '#7892B5');
+    doc.font('KalamBold').fontSize(fontSize).fillColor(ink).text(label, bx + 5, by + 4, { width: bw - 10, height: bh - 8, align: 'center', valign: 'center' });
+    doc.restore();
+  };
+
+  if (/osi|open systems interconnection/.test(topic)) {
+    const labels = ['Application', 'Presentation', 'Session', 'Transport', 'Network', 'Data Link', 'Physical'];
+    const rowH = 17; const gap = 4; const bx = x + width * 0.2; const bw = width * 0.6;
+    labels.forEach((label, i) => box(`${7 - i}. ${label}`, bx, y + i * (rowH + gap), bw, rowH, i % 2 ? lavender : mint, 9));
+    return labels.length * (rowH + gap) - gap;
+  }
+
+  if (/deadlock|circular wait|resource allocation/.test(topic)) {
+    const left = x + width * 0.14; const right = x + width * 0.66; const nodeY = y + 29; const nodeW = width * 0.2; const nodeH = 27;
+    box('Process P1', left, nodeY, nodeW, nodeH, pink, 9);
+    box('Process P2', right, nodeY, nodeW, nodeH, pink, 9);
+    box('Resource R1', x + width * 0.39, y, width * 0.22, 22, lavender, 9);
+    box('Resource R2', x + width * 0.39, y + 64, width * 0.22, 22, mint, 9);
+    drawArrow(doc, left + nodeW, nodeY + 5, x + width * 0.43, y + 20, ink);
+    drawArrow(doc, x + width * 0.61, y + 20, right, nodeY + 5, ink);
+    drawArrow(doc, right, nodeY + nodeH - 4, x + width * 0.61, y + 73, ink);
+    drawArrow(doc, x + width * 0.39, y + 73, left + nodeW, nodeY + nodeH - 4, ink);
+    doc.font('Kalam').fontSize(9).fillColor(ink).text('Circular wait', x, y + 94, { width, align: 'center' });
+    return 110;
+  }
+
+  if (/machine learning|supervised|unsupervised|reinforcement/.test(topic)) {
+    const labels = ['Supervised\nLabeled examples', 'Unsupervised\nFind patterns', 'Reinforcement\nReward and feedback'];
+    const gap = 8; const bw = (width - gap * 2) / 3;
+    labels.forEach((label, i) => box(label, x + i * (bw + gap), y + 10, bw, 48, [mint, lavender, pink][i], 9));
+    doc.font('Kalam').fontSize(9).fillColor(ink).text('Three common learning approaches', x, y + 63, { width, align: 'center' });
+    return 78;
+  }
+
+  const steps = answer.points.map(point => point.title || point.desc).filter(Boolean).slice(0, 4);
+  if (steps.length > 1) {
+    const gap = 17; const bw = Math.min(110, (width - gap * (steps.length - 1)) / steps.length); const total = bw * steps.length + gap * (steps.length - 1); const start = x + (width - total) / 2;
+    steps.forEach((step, i) => {
+      const bx = start + i * (bw + gap);
+      box(step, bx, y + 12, bw, 38, i % 2 ? lavender : mint, 9);
+      if (i < steps.length - 1) drawArrow(doc, bx + bw + 2, y + 31, bx + bw + gap - 2, y + 31, ink);
+    });
+    doc.font('Kalam').fontSize(9).fillColor(ink).text('Related concepts at a glance', x, y + 57, { width, align: 'center' });
+    return 72;
+  }
+
+  return 0;
+}
+
 export default function generatePDF(data, fileName, options = {}) {
   const answers = normalizeAnswers(data);
   const revision = Boolean(options.revision);
@@ -104,7 +171,18 @@ export default function generatePDF(data, fileName, options = {}) {
           doc.font('Kalam').fontSize(13.5).fillColor(blue).text(point.desc, { width: textWidth - 5, lineGap: 4, indent: 5 });
         });
       }
-      if (answer.diagram && !/^not needed\.?$/i.test(answer.diagram.trim())) { heading('Diagram'); paragraph(answer.diagram, 13.5, accents.Diagram); }
+      if (answer.diagram && !/^not needed\.?$/i.test(answer.diagram.trim())) {
+        heading('Diagram');
+        const diagramHeight = /osi|open systems interconnection/i.test(`${answer.question} ${answer.diagram}`) ? 143 : 120;
+        ensureRoom(diagramHeight);
+        const diagramY = doc.y;
+        const drawnHeight = drawTopicDiagram(doc, answer, doc.page.margins.left, diagramY, textWidth);
+        if (drawnHeight) {
+          doc.y = diagramY + drawnHeight + 8;
+        } else {
+          paragraph(answer.diagram, 13.5, accents.Diagram);
+        }
+      }
       if (answer.conclusion) { heading('Conclusion'); paragraph(answer.conclusion, 13.5, accents.Conclusion); }
       if (answer.keywords.length) { heading('Keywords'); paragraph(answer.keywords.join(' - ').toLocaleUpperCase(), 13, accents.Keywords); }
       doc.moveDown(0.75);
