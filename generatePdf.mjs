@@ -119,19 +119,25 @@ function drawTopicDiagram(doc, answer, x, y, width) {
     return 170;
   }
 
-  const steps = answer.points.map(point => point.title || point.desc).filter(Boolean).slice(0, 4);
-  if (steps.length > 1) {
-    const gap = 17; const bw = Math.min(110, (width - gap * (steps.length - 1)) / steps.length); const total = bw * steps.length + gap * (steps.length - 1); const start = x + (width - total) / 2;
-    steps.forEach((step, i) => {
-      const bx = start + i * (bw + gap);
-      box(`STEP ${i + 1}\n${step}`, bx, y + 14, bw, 48, i % 2 ? lavender : mint, 8.5);
-      if (i < steps.length - 1) drawArrow(doc, bx + bw + 2, y + 38, bx + bw + gap - 2, y + 38, ink);
-    });
-    text('CONCEPT FLOW', x, y + 70, width, 8.5, '#654C9D');
-    return 84;
-  }
-
-  return 0;
+  const ideas = answer.points.slice(0, 8);
+  const cards = ideas.length ? ideas : [{ title: 'Core idea', desc: answer.definition || answer.explanation || answer.question }];
+  const columns = cards.length === 1 ? 1 : 2;
+  const gapX = 10; const gapY = 8; const cardW = (width - gapX * (columns - 1)) / columns;
+  const cardH = 42; const rows = Math.ceil(cards.length / columns); const cardsY = y + 32;
+  box('QUESTION / KEY IDEAS', x + width * 0.28, y, width * 0.44, 24, '#FFF0D9', 8.5);
+  cards.forEach((idea, i) => {
+    const col = i % columns; const row = Math.floor(i / columns); const bx = x + col * (cardW + gapX); const by = cardsY + row * (cardH + gapY);
+    doc.save().roundedRect(bx, by, cardW, cardH, 6).fillAndStroke(i % 2 ? lavender : mint, '#7892B5');
+    const title = String(idea.title || idea.desc || `Key idea ${i + 1}`).slice(0, 62);
+    const desc = idea.title && idea.desc ? String(idea.desc).slice(0, 95) : '';
+    doc.font('KalamBold').fontSize(8.7).fillColor(ink).text(`${i + 1}. ${title}`, bx + 7, by + 4, { width: cardW - 14, height: 15, ellipsis: true });
+    if (desc) doc.font('Kalam').fontSize(7.7).fillColor('#315D9A').text(desc, bx + 7, by + 20, { width: cardW - 14, height: 18, ellipsis: true });
+    doc.restore();
+    if (row === 0) drawArrow(doc, x + width / 2, y + 25, bx + cardW / 2, by - 1, '#7892B5');
+  });
+  const height = 33 + rows * cardH + (rows - 1) * gapY;
+  text('KEY CONCEPTS FROM THIS ANSWER', x, y + height + 2, width, 8, '#654C9D');
+  return height + 15;
 }
 
 export default function generatePDF(data, fileName, options = {}) {
@@ -203,21 +209,18 @@ export default function generatePDF(data, fileName, options = {}) {
           doc.font('Kalam').fontSize(13.5).fillColor(blue).text(point.desc, { width: textWidth - 5, lineGap: 4, indent: 5 });
         });
       }
-      if (answer.diagram && !/^not needed\.?$/i.test(answer.diagram.trim())) {
+      {
         const topicText = `${answer.question} ${answer.diagram} ${answer.points.map(point => point.title).join(' ')}`;
         const diagramHeight = /osi|open systems interconnection/i.test(topicText) ? 174
           : /deadlock|circular wait|resource allocation/i.test(topicText) ? 164
-            : /machine learning|supervised|unsupervised|reinforcement/i.test(topicText) ? 170 : 90;
+            : /machine learning|supervised|unsupervised|reinforcement/i.test(topicText) ? 170
+              : 48 + Math.ceil(Math.min(answer.points.length || 1, 8) / 2) * 50;
         // Keep the heading with its illustration when a page break is needed.
         ensureRoom(diagramHeight + 58);
         heading('Diagram');
         const diagramY = doc.y;
         const drawnHeight = drawTopicDiagram(doc, answer, doc.page.margins.left, diagramY, textWidth);
-        if (drawnHeight) {
-          doc.y = diagramY + drawnHeight + 8;
-        } else {
-          paragraph(answer.diagram, 13.5, accents.Diagram);
-        }
+        doc.y = diagramY + drawnHeight + 8;
       }
       if (answer.conclusion) { heading('Conclusion'); paragraph(answer.conclusion, 13.5, accents.Conclusion); }
       if (answer.keywords.length) { heading('Keywords'); paragraph(answer.keywords.join(' - ').toLocaleUpperCase(), 13, accents.Keywords); }
