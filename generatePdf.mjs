@@ -57,34 +57,66 @@ function drawTopicDiagram(doc, answer, x, y, width) {
     doc.font('KalamBold').fontSize(fontSize).fillColor(ink).text(label, bx + 5, by + 4, { width: bw - 10, height: bh - 8, align: 'center', valign: 'center' });
     doc.restore();
   };
+  const text = (label, tx, ty, tw, size = 8.5, color = ink, align = 'center') => {
+    doc.font('Kalam').fontSize(size).fillColor(color).text(label, tx, ty, { width: tw, align, lineGap: 1 });
+  };
 
   if (/osi|open systems interconnection/.test(topic)) {
-    const labels = ['Application', 'Presentation', 'Session', 'Transport', 'Network', 'Data Link', 'Physical'];
-    const rowH = 17; const gap = 4; const bx = x + width * 0.2; const bw = width * 0.6;
-    labels.forEach((label, i) => box(`${7 - i}. ${label}`, bx, y + i * (rowH + gap), bw, rowH, i % 2 ? lavender : mint, 9));
-    return labels.length * (rowH + gap) - gap;
+    const layers = [
+      ['7  Application', 'HTTP  ·  DNS'], ['6  Presentation', 'TLS  ·  JPEG'], ['5  Session', 'RPC  ·  NetBIOS'],
+      ['4  Transport', 'TCP  ·  UDP'], ['3  Network', 'IP  ·  ICMP'], ['2  Data Link', 'Ethernet  ·  Wi-Fi'], ['1  Physical', 'Signals  ·  Bits']
+    ];
+    const rowH = 17; const gap = 4; const bx = x + width * 0.15; const bw = width * 0.57;
+    text('OSI MODEL  ·  7-LAYER STACK', bx, y, bw, 9, '#654C9D');
+    layers.forEach(([label, protocol], i) => {
+      const rowY = y + 15 + i * (rowH + gap);
+      box(label, bx, rowY, bw, rowH, i % 2 ? lavender : mint, 8.7);
+      text(protocol, bx + bw + 9, rowY + 4, width - (bx - x) - bw - 9, 8, '#315D9A', 'left');
+      if (i < layers.length - 1) drawArrow(doc, bx - 9, rowY + rowH - 1, bx - 9, rowY + rowH + gap - 1, '#B16427');
+    });
+    text('Each layer serves the one above it', bx, y + 160, bw, 8, '#315D9A');
+    return 174;
   }
 
   if (/deadlock|circular wait|resource allocation/.test(topic)) {
-    const left = x + width * 0.14; const right = x + width * 0.66; const nodeY = y + 29; const nodeW = width * 0.2; const nodeH = 27;
-    box('Process P1', left, nodeY, nodeW, nodeH, pink, 9);
-    box('Process P2', right, nodeY, nodeW, nodeH, pink, 9);
-    box('Resource R1', x + width * 0.39, y, width * 0.22, 22, lavender, 9);
-    box('Resource R2', x + width * 0.39, y + 64, width * 0.22, 22, mint, 9);
-    drawArrow(doc, left + nodeW, nodeY + 5, x + width * 0.43, y + 20, ink);
-    drawArrow(doc, x + width * 0.61, y + 20, right, nodeY + 5, ink);
-    drawArrow(doc, right, nodeY + nodeH - 4, x + width * 0.61, y + 73, ink);
-    drawArrow(doc, x + width * 0.39, y + 73, left + nodeW, nodeY + nodeH - 4, ink);
-    doc.font('Kalam').fontSize(9).fillColor(ink).text('Circular wait', x, y + 94, { width, align: 'center' });
-    return 110;
+    const nodeY = y + 53; const nodeH = 29; const nodeW = 93;
+    const p1x = x + 9; const p2x = x + width - nodeW - 9; const cx = x + width / 2;
+    const r1y = y + 13; const r2y = y + 108; const radius = 18;
+    text('RESOURCE ALLOCATION GRAPH', x, y, width, 9, '#654C9D');
+    box('Process P1', p1x, nodeY, nodeW, nodeH, pink, 9);
+    box('Process P2', p2x, nodeY, nodeW, nodeH, pink, 9);
+    [r1y, r2y].forEach((cy, i) => {
+      doc.save().circle(cx, cy + radius, radius).fillAndStroke(i ? mint : lavender, '#7892B5');
+      doc.font('KalamBold').fontSize(8.5).fillColor(ink).text(`R${i + 1}`, cx - radius, cy + radius - 6, { width: radius * 2, align: 'center' }).restore();
+    });
+    // Allocation edges point resource → process; request edges point process → resource.
+    drawArrow(doc, cx - 15, r1y + 32, p2x + 4, nodeY + 5, '#217A66');
+    drawArrow(doc, p2x + 8, nodeY + nodeH - 3, cx + 14, r2y + 4, '#B16427');
+    drawArrow(doc, cx + 15, r2y + 4, p1x + nodeW - 4, nodeY + nodeH - 3, '#217A66');
+    drawArrow(doc, p1x + nodeW - 2, nodeY + 4, cx - 14, r1y + 32, '#B16427');
+    drawArrow(doc, x + width * 0.26, y + 150, x + width * 0.38, y + 150, '#217A66');
+    text('Allocated', x + width * 0.38, y + 145, width * 0.16, 8, '#217A66', 'left');
+    drawArrow(doc, x + width * 0.61, y + 150, x + width * 0.73, y + 150, '#B16427');
+    text('Request', x + width * 0.73, y + 145, width * 0.2, 8, '#B16427', 'left');
+    return 164;
   }
 
   if (/machine learning|supervised|unsupervised|reinforcement/.test(topic)) {
-    const labels = ['Supervised\nLabeled examples', 'Unsupervised\nFind patterns', 'Reinforcement\nReward and feedback'];
-    const gap = 8; const bw = (width - gap * 2) / 3;
-    labels.forEach((label, i) => box(label, x + i * (bw + gap), y + 10, bw, 48, [mint, lavender, pink][i], 9));
-    doc.font('Kalam').fontSize(9).fillColor(ink).text('Three common learning approaches', x, y + 63, { width, align: 'center' });
-    return 78;
+    const gap = 8; const bw = (width - gap * 2) / 3; const top = y + 37; const cardH = 77;
+    box('TRAINING DATA', x + width * 0.34, y, width * 0.32, 23, '#F1F5FA', 9);
+    const cards = [
+      { title: 'SUPERVISED', detail: 'Labeled examples', example: 'Spam detection', fill: mint },
+      { title: 'UNSUPERVISED', detail: 'Finds patterns', example: 'Customer groups', fill: lavender },
+      { title: 'REINFORCEMENT', detail: 'Reward / feedback', example: 'Game strategy', fill: pink }
+    ];
+    cards.forEach((card, i) => {
+      const bx = x + i * (bw + gap);
+      drawArrow(doc, x + width / 2, y + 24, bx + bw / 2, top - 2, '#7892B5');
+      box(`${card.title}\n${card.detail}\n\nExample: ${card.example}`, bx, top, bw, cardH, card.fill, 8.4);
+      drawArrow(doc, bx + bw / 2, top + cardH + 2, x + width / 2, y + 141, '#7892B5');
+    });
+    box('PREDICTION  ·  DECISION  ·  ACTION', x + width * 0.22, y + 142, width * 0.56, 23, '#FFF0D9', 8.5);
+    return 170;
   }
 
   const steps = answer.points.map(point => point.title || point.desc).filter(Boolean).slice(0, 4);
@@ -92,11 +124,11 @@ function drawTopicDiagram(doc, answer, x, y, width) {
     const gap = 17; const bw = Math.min(110, (width - gap * (steps.length - 1)) / steps.length); const total = bw * steps.length + gap * (steps.length - 1); const start = x + (width - total) / 2;
     steps.forEach((step, i) => {
       const bx = start + i * (bw + gap);
-      box(step, bx, y + 12, bw, 38, i % 2 ? lavender : mint, 9);
-      if (i < steps.length - 1) drawArrow(doc, bx + bw + 2, y + 31, bx + bw + gap - 2, y + 31, ink);
+      box(`STEP ${i + 1}\n${step}`, bx, y + 14, bw, 48, i % 2 ? lavender : mint, 8.5);
+      if (i < steps.length - 1) drawArrow(doc, bx + bw + 2, y + 38, bx + bw + gap - 2, y + 38, ink);
     });
-    doc.font('Kalam').fontSize(9).fillColor(ink).text('Related concepts at a glance', x, y + 57, { width, align: 'center' });
-    return 72;
+    text('CONCEPT FLOW', x, y + 70, width, 8.5, '#654C9D');
+    return 84;
   }
 
   return 0;
@@ -172,9 +204,13 @@ export default function generatePDF(data, fileName, options = {}) {
         });
       }
       if (answer.diagram && !/^not needed\.?$/i.test(answer.diagram.trim())) {
+        const topicText = `${answer.question} ${answer.diagram} ${answer.points.map(point => point.title).join(' ')}`;
+        const diagramHeight = /osi|open systems interconnection/i.test(topicText) ? 174
+          : /deadlock|circular wait|resource allocation/i.test(topicText) ? 164
+            : /machine learning|supervised|unsupervised|reinforcement/i.test(topicText) ? 170 : 90;
+        // Keep the heading with its illustration when a page break is needed.
+        ensureRoom(diagramHeight + 58);
         heading('Diagram');
-        const diagramHeight = /osi|open systems interconnection/i.test(`${answer.question} ${answer.diagram}`) ? 143 : 120;
-        ensureRoom(diagramHeight);
         const diagramY = doc.y;
         const drawnHeight = drawTopicDiagram(doc, answer, doc.page.margins.left, diagramY, textWidth);
         if (drawnHeight) {
