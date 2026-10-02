@@ -1,0 +1,9 @@
+{
+  "name": "digital-orbit-night-mode",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": { "dev": "node server/index.js --dev", "build": "vite build", "start": "node server/index.js", "preview": "vite preview" },
+  "dependencies": { "@vitejs/plugin-react": "latest", "framer-motion": "latest", "jspdf": "^2.5.2", "lucide-react": "latest", "react": "latest", "react-dom": "latest" },
+  "devDependencies": { "autoprefixer": "^10.4.20", "postcss": "^8.4.49", "tailwindcss": "^3.4.17", "vite": "latest" }
+}
