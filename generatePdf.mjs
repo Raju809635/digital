@@ -12,6 +12,8 @@ const accents = {
 
 function normalizePdfText(value = '') {
   return String(value).normalize('NFD')
+    .replace(/[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/g, ' ')
+    .replace(/[\u200B-\u200F\u2060\uFEFF]/g, '')
     .replace(/([A-Za-z])\u0304/g, '$1_mean')
     .replace(/[₀₁₂₃₄₅₆₇₈₉]/g, char => `_${'₀₁₂₃₄₅₆₇₈₉'.indexOf(char)}`)
     .replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹]/g, char => `^${'⁰¹²³⁴⁵⁶⁷⁸⁹'.indexOf(char)}`)
@@ -20,7 +22,8 @@ function normalizePdfText(value = '') {
     .replace(/[μΜ]/g, 'mu').replace(/[θΘ]/g, 'theta').replace(/[λΛ]/g, 'lambda')
     .replace(/[αΑ]/g, 'alpha').replace(/[Δδ]/g, 'delta').replace(/[πΠ]/g, 'pi')
     .replace(/[σ]/g, 'sigma').replace(/[φΦ]/g, 'phi').replace(/[ωΩ]/g, 'omega')
-    .replace(/[×·]/g, '*').replace(/[÷]/g, '/').replace(/[−–—]/g, '-')
+    .replace(/[×·]/g, '*').replace(/[÷]/g, '/').replace(/[\u00AD\u2010-\u2015\u2043\u2212]/g, '-')
+    .replace(/[‘’‚‛]/g, "'").replace(/[“”„‟]/g, '"').replace(/[•‣⁃]/g, '-')
     .replace(/[≤]/g, '<=').replace(/[≥]/g, '>=').replace(/[≠]/g, '!=').replace(/[≈]/g, 'approximately')
     .replace(/[→⇒]/g, ' to ').replace(/[←]/g, ' from ').replace(/[√]/g, 'sqrt ')
     .replace(/[∞]/g, 'infinity').replace(/[∈]/g, 'in').replace(/[□]/g, '[symbol]')
