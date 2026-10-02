@@ -13,4 +13,4 @@ For production, run `npm run build` followed by `npm start`.
 
 ## Deploy to Vercel
 
-Import this repository in Vercel with the Vite preset, build command `npm run build`, and output directory `dist` (also set in `vercel.json`). Add `GROQ_API_KEY` under Environment Variables before deploying. Optionally set `GROQ_MODEL`; it defaults to `openai/gpt-oss-120b`. The `/api` directory contains the serverless functions used by the deployed frontend.
+Import this repository in Vercel with the Vite preset, build command `npm run build`, and output directory `dist` (also set in `vercel.json`). Add the Groq API secret as `GROQ_API_KEY` under Environment Variables. For an existing deployment, `XAI_API_KEY` is also accepted as a variable name; both names stay server-side. Optionally set `GROQ_MODEL`; it defaults to `openai/gpt-oss-120b`. The `/api` directory contains the serverless functions used by the deployed frontend.

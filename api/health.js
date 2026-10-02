@@ -1,4 +1,4 @@
 export default function handler(_request, response) {
   response.setHeader('Cache-Control', 'no-store');
-  return response.status(200).json({ ok: true, configured: Boolean(process.env.GROQ_API_KEY) });
+  return response.status(200).json({ ok: true, configured: Boolean(process.env.GROQ_API_KEY || process.env.XAI_API_KEY) });
 }

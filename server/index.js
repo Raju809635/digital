@@ -53,8 +53,8 @@ const schema = {
 };
 
 async function generateStudyPlan(input) {
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) throw Object.assign(new Error('Add GROQ_API_KEY to your .env file, then restart the app.'), { status: 503 });
+  const apiKey = process.env.GROQ_API_KEY || process.env.XAI_API_KEY;
+  if (!apiKey) throw Object.assign(new Error('Add the Groq key to your .env file, then restart the app.'), { status: 503 });
   const model = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
   const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
@@ -83,8 +83,8 @@ async function generateStudyPlan(input) {
 }
 
 async function evaluateAnswer(input) {
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) throw Object.assign(new Error('Add GROQ_API_KEY to your .env file, then restart the app.'), { status: 503 });
+  const apiKey = process.env.GROQ_API_KEY || process.env.XAI_API_KEY;
+  if (!apiKey) throw Object.assign(new Error('Add the Groq key to your .env file, then restart the app.'), { status: 503 });
   const model = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
   const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST', headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
@@ -107,7 +107,7 @@ const vite = dev ? await (async () => {
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
   if (url.pathname.startsWith('/api/')) {
-    if (req.method === 'GET' && url.pathname === '/api/health') return send(res, 200, { ok: true, configured: Boolean(process.env.GROQ_API_KEY) });
+    if (req.method === 'GET' && url.pathname === '/api/health') return send(res, 200, { ok: true, configured: Boolean(process.env.GROQ_API_KEY || process.env.XAI_API_KEY) });
     if (req.method === 'POST' && url.pathname === '/api/study-plan') {
       try {
         const input = await bodyJson(req);
