@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+﻿import { useRef, useState } from 'react';
 import { ChevronDown, FileText, LoaderCircle, Play, Pause, Upload, Download, Sparkles, Volume2 } from 'lucide-react';
 
 function AnswerItem({ answer, index, expanded, onToggle }) {
@@ -17,14 +17,18 @@ function AnswerItem({ answer, index, expanded, onToggle }) {
       <span><small>QUESTION {String(index + 1).padStart(2, '0')}</small>{answer.question}</span><ChevronDown className={expanded ? 'turned' : ''} size={20}/>
     </button>
     {expanded && <div className="answer-body">
-      <h3>Definition</h3><p>{answer.definition}</p>
-      <h3>Explanation</h3><p>{answer.explanation}</p>
-      <h3>Key points</h3><ul>{answer.keyPoints.map((point, i) => <li key={i}>{point}</li>)}</ul>
-      {answer.diagram && !/^not needed\.?$/i.test(answer.diagram.trim()) && <><h3>Diagram</h3><p className="diagram-placeholder">{answer.diagram}</p></>}
-      <h3>Conclusion</h3><p>{answer.conclusion}</p>
-      {!!answer.keywords?.length && <><h3>Keywords</h3><p className="keywords">{answer.keywords.map(word => word.toLocaleUpperCase()).join(' · ')}</p></>}
-      <p className="write-hint"><Sparkles size={15}/> Write this structure clearly for full marks.</p>
-      <button className="listen-button" onClick={speak}>{speaking ? <Pause size={16}/> : <Volume2 size={16}/>} {speaking ? 'Pause audio' : 'Listen · 2x'}</button>
+      {answer.isMath ? <>
+        <h3>Worked solution</h3><p className="solution-text">{answer.explanation}</p>
+        {answer.conclusion && <><h3>Final answer</h3><p className="solution-text">{answer.conclusion}</p></>}
+      </> : <>
+        <h3>Definition</h3><p>{answer.definition}</p>
+        <h3>Explanation</h3><p>{answer.explanation}</p>
+        <h3>Key points</h3><ul>{answer.keyPoints.map((point, i) => <li key={i}>{point}</li>)}</ul>
+        {answer.diagram && !/^not needed\.?$/i.test(answer.diagram.trim()) && <><h3>Diagram</h3><p className="diagram-placeholder">{answer.diagram}</p></>}
+        <h3>Conclusion</h3><p>{answer.conclusion}</p>
+        {!!answer.keywords?.length && <><h3>Keywords</h3><p className="keywords">{answer.keywords.map(word => word.toLocaleUpperCase()).join(' · ')}</p></>}
+        <p className="write-hint"><Sparkles size={15}/> Write this structure clearly for full marks.</p>
+      </>}      <button className="listen-button" onClick={speak}>{speaking ? <Pause size={16}/> : <Volume2 size={16}/>} {speaking ? 'Pause audio' : 'Listen Â· 2x'}</button>
     </div>}
   </article>;
 }
@@ -54,8 +58,8 @@ async function downloadPdf({ title, answers, revision }) {
     const raw = await response.text();
     let payload = {};
     try { payload = JSON.parse(raw); } catch { payload.error = raw.slice(0, 180); }
-    const detail = [payload.details, payload.diagnostic].filter(Boolean).join(' · ');
-    throw new Error([payload.error || `PDF service error (${response.status})`, detail].filter(Boolean).join(' — '));
+    const detail = [payload.details, payload.diagnostic].filter(Boolean).join(' Â· ');
+    throw new Error([payload.error || `PDF service error (${response.status})`, detail].filter(Boolean).join(' â€” '));
   }
   if (!response.headers.get('content-type')?.includes('application/pdf')) throw new Error('The server did not return a PDF. Please try again.');
   const blob = await response.blob();
@@ -109,28 +113,28 @@ export default function App() {
   };
 
   return <main className="app-shell">
-    <header className="topbar"><a className="brand" href="#top">digital orbit <small>by ORIN</small></a><span className="top-label">NIGHT MODE · EXAM ANSWER GENERATOR</span></header>
-    <section className="hero" id="top"><div className="hero-tag">YOUR LAST-MINUTE ANSWER SHEET <span>✳</span></div>
-      <h1>Upload important questions <em>→</em><br/>Get handwritten exam answers instantly</h1>
+    <header className="topbar"><a className="brand" href="#top">digital orbit <small>by ORIN</small></a><span className="top-label">NIGHT MODE Â· EXAM ANSWER GENERATOR</span></header>
+    <section className="hero" id="top"><div className="hero-tag">YOUR LAST-MINUTE ANSWER SHEET <span>âœ³</span></div>
+      <h1>Upload important questions <em>â†’</em><br/>Get handwritten exam answers instantly</h1>
       <p>No notes. No wasting time. Only what gets marks.</p>
     </section>
     <section className="input-panel" aria-label="Question input">
       <label htmlFor="questions">Upload important questions</label>
       <p className="field-hint">Paste the questions below, or add a PDF with selectable text.</p>
-      <textarea id="questions" value={questions} onChange={e => { setQuestions(e.target.value); setFileName(''); }} placeholder={'Paste one or more questions here…\n\nExample: Explain the OSI reference model.'} maxLength={16000}/>
+      <textarea id="questions" value={questions} onChange={e => { setQuestions(e.target.value); setFileName(''); }} placeholder={'Paste one or more questions hereâ€¦\n\nExample: Explain the OSI reference model.'} maxLength={16000}/>
       <div className="input-actions"><button className="upload-button" onClick={() => fileInput.current?.click()}><Upload size={17}/> Upload PDF</button><input ref={fileInput} type="file" accept="application/pdf,.pdf" onChange={chooseFile} hidden/><span>{fileName || `${questions.length.toLocaleString()} / 16,000`}</span></div>
       <div className="mode-label">CHOOSE YOUR ANSWER STYLE</div>
       <div className="mode-options">{[['pass','Pass Mode','Short, direct answers'],['score','Score Mode','More detail for higher marks']].map(([value,title,desc]) => <button key={value} onClick={() => setMode(value)} className={`mode-option ${mode===value?'active':''}`} aria-pressed={mode===value}><span className="mode-dot"/><span><b>{title}</b><small>{desc}</small></span></button>)}</div>
-      <button className="generate-button" onClick={generate} disabled={loading}>{loading ? <><LoaderCircle className="spin" size={18}/> Preparing your answers…</> : <><Sparkles size={18}/> Generate Handwritten Answers</>}</button>
+      <button className="generate-button" onClick={generate} disabled={loading}>{loading ? <><LoaderCircle className="spin" size={18}/> Preparing your answersâ€¦</> : <><Sparkles size={18}/> Generate Handwritten Answers</>}</button>
       {error && <p className="error-message" role="alert">{error}</p>}
       <p className="privacy-note">Your answers are prepared securely. Never paste passwords or private information.</p>
     </section>
 
     {answers.length > 0 && <section className="results" id="results"><div className="results-heading"><div><span className="section-kicker">YOUR EXAM ANSWERS</span><h2>{subject}</h2><p>{answers.length} ready-to-review {answers.length === 1 ? 'answer' : 'answers'}</p></div><FileText size={32}/></div>
       <div className="answers-list">{answers.map((answer, index) => <AnswerItem key={`${index}-${answer.question}`} answer={answer} index={index} expanded={openIndex===index} onToggle={() => setOpenIndex(openIndex===index ? -1 : index)}/>)}</div>
-      <div className="download-area"><span className="section-kicker">TAKE YOUR NOTES WITH YOU</span><h2>Ready to write.</h2><p>Notebook-style pages with clear headings and key terms.</p><div className="download-actions"><button className="download-primary" disabled={pdfBusy} onClick={() => exportPdf(false)}><Download size={17}/>{pdfBusy ? 'Creating PDF…' : 'Download Handwritten PDF'}</button><button className="download-secondary" disabled={pdfBusy} onClick={() => exportPdf(true)}><FileText size={17}/>{pdfBusy ? 'Creating PDF…' : '1-Page Revision PDF'}</button></div>{pdfError && <p className="error-message pdf-error" role="alert">{pdfError}</p>}</div>
+      <div className="download-area"><span className="section-kicker">TAKE YOUR NOTES WITH YOU</span><h2>Ready to write.</h2><p>Notebook-style pages with clear headings and key terms.</p><div className="download-actions"><button className="download-primary" disabled={pdfBusy} onClick={() => exportPdf(false)}><Download size={17}/>{pdfBusy ? 'Creating PDFâ€¦' : 'Download Handwritten PDF'}</button><button className="download-secondary" disabled={pdfBusy} onClick={() => exportPdf(true)}><FileText size={17}/>{pdfBusy ? 'Creating PDFâ€¦' : '1-Page Revision PDF'}</button></div>{pdfError && <p className="error-message pdf-error" role="alert">{pdfError}</p>}</div>
     </section>}
-    {loading && <div className="loading-note"><LoaderCircle className="spin" size={18}/> Turning your questions into scoring answers…</div>}
-    <footer>Digital Orbit <span>·</span> Make tonight count.</footer>
+    {loading && <div className="loading-note"><LoaderCircle className="spin" size={18}/> Turning your questions into scoring answersâ€¦</div>}
+    <footer>Digital Orbit <span>Â·</span> Make tonight count.</footer>
   </main>;
 }

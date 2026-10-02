@@ -1,34 +1,16 @@
-import fs from 'node:fs';
+﻿import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import PDFDocument from 'pdfkit';
+import { isMathQuestion, readableText as normalizePdfText } from './lib/format.js';
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 const blue = '#173F83';
 const accents = {
   Definition: '#245EA6', Explanation: '#654C9D', 'Key Points': '#217A66',
-  Diagram: '#B16427', Conclusion: '#286747', Keywords: '#A43A51'
+  Diagram: '#B16427', Conclusion: '#286747', Keywords: '#A43A51',
+  'Worked Solution': '#245EA6', 'Final Answer': '#286747'
 };
-
-function normalizePdfText(value = '') {
-  return String(value).normalize('NFD')
-    .replace(/[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/g, ' ')
-    .replace(/[\u200B-\u200F\u2060\uFEFF]/g, '')
-    .replace(/([A-Za-z])\u0304/g, '$1_mean')
-    .replace(/[₀₁₂₃₄₅₆₇₈₉]/g, char => `_${'₀₁₂₃₄₅₆₇₈₉'.indexOf(char)}`)
-    .replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹]/g, char => `^${'⁰¹²³⁴⁵⁶⁷⁸⁹'.indexOf(char)}`)
-    .replace(/[ᵢⱼₙ]/g, char => ({ 'ᵢ': '_i', 'ⱼ': '_j', 'ₙ': '_n' })[char])
-    .replace(/[βΒ]/g, 'beta').replace(/[εΕ]/g, 'epsilon').replace(/Σ|∑/g, 'SUM')
-    .replace(/[μΜ]/g, 'mu').replace(/[θΘ]/g, 'theta').replace(/[λΛ]/g, 'lambda')
-    .replace(/[αΑ]/g, 'alpha').replace(/[Δδ]/g, 'delta').replace(/[πΠ]/g, 'pi')
-    .replace(/[σ]/g, 'sigma').replace(/[φΦ]/g, 'phi').replace(/[ωΩ]/g, 'omega')
-    .replace(/[×·]/g, '*').replace(/[÷]/g, '/').replace(/[\u00AD\u2010-\u2015\u2043\u2212]/g, '-')
-    .replace(/[‘’‚‛]/g, "'").replace(/[“”„‟]/g, '"').replace(/[•‣⁃]/g, '-')
-    .replace(/[≤]/g, '<=').replace(/[≥]/g, '>=').replace(/[≠]/g, '!=').replace(/[≈]/g, 'approximately')
-    .replace(/[→⇒]/g, ' to ').replace(/[←]/g, ' from ').replace(/[√]/g, 'sqrt ')
-    .replace(/[∞]/g, 'infinity').replace(/[∈]/g, 'in').replace(/[□]/g, '[symbol]')
-    .replace(/\s{2,}/g, ' ').trim().normalize('NFC');
-}
 
 function fontPath(file) {
   const candidates = [path.join(projectRoot, 'fonts', file), path.join(process.cwd(), 'fonts', file)];
@@ -43,13 +25,14 @@ function normalizeAnswers(data = {}) {
     const items = answer.keyPoints || answer.points || [];
     const points = items.map(point => {
       if (typeof point !== 'string') return { title: normalizePdfText(point.title), desc: normalizePdfText(point.desc) };
-      const split = point.match(/^([^:–-]{2,55})\s*[:–-]\s*(.+)$/);
+      const split = point.match(/^([^:â€“-]{2,55})\s*[:â€“-]\s*(.+)$/);
       return split ? { title: normalizePdfText(split[1]), desc: normalizePdfText(split[2]) } : { title: '', desc: normalizePdfText(point) };
     });
     return {
       question: normalizePdfText(answer.question || `Question ${index + 1}`),
       definition: normalizePdfText(answer.definition), explanation: normalizePdfText(answer.explanation), points,
       diagram: normalizePdfText(answer.diagram), conclusion: normalizePdfText(answer.conclusion),
+      isMath: Boolean(answer.isMath) || isMathQuestion(answer.question, data.subject || data.title, answer.explanation),
       keywords: (answer.keywords || []).map(normalizePdfText),
       diagramSpec: {
         title: normalizePdfText(answer.diagramSpec?.title),
@@ -175,11 +158,11 @@ function drawTopicDiagram(doc, answer, x, y, width) {
 
   if (/osi|open systems interconnection/.test(topic)) {
     const layers = [
-      ['7  Application', 'HTTP  ·  DNS'], ['6  Presentation', 'TLS  ·  JPEG'], ['5  Session', 'RPC  ·  NetBIOS'],
-      ['4  Transport', 'TCP  ·  UDP'], ['3  Network', 'IP  ·  ICMP'], ['2  Data Link', 'Ethernet  ·  Wi-Fi'], ['1  Physical', 'Signals  ·  Bits']
+      ['7  Application', 'HTTP  Â·  DNS'], ['6  Presentation', 'TLS  Â·  JPEG'], ['5  Session', 'RPC  Â·  NetBIOS'],
+      ['4  Transport', 'TCP  Â·  UDP'], ['3  Network', 'IP  Â·  ICMP'], ['2  Data Link', 'Ethernet  Â·  Wi-Fi'], ['1  Physical', 'Signals  Â·  Bits']
     ];
     const rowH = 17; const gap = 4; const bx = x + width * 0.15; const bw = width * 0.57;
-    text('OSI MODEL  ·  7-LAYER STACK', bx, y, bw, 9, '#654C9D');
+    text('OSI MODEL  Â·  7-LAYER STACK', bx, y, bw, 9, '#654C9D');
     layers.forEach(([label, protocol], i) => {
       const rowY = y + 15 + i * (rowH + gap);
       box(label, bx, rowY, bw, rowH, i % 2 ? lavender : mint, 8.7);
@@ -201,7 +184,7 @@ function drawTopicDiagram(doc, answer, x, y, width) {
       doc.save().circle(cx, cy + radius, radius).fillAndStroke(i ? mint : lavender, '#7892B5');
       doc.font('KalamBold').fontSize(8.5).fillColor(ink).text(`R${i + 1}`, cx - radius, cy + radius - 6, { width: radius * 2, align: 'center' }).restore();
     });
-    // Allocation edges point resource → process; request edges point process → resource.
+    // Allocation edges point resource â†’ process; request edges point process â†’ resource.
     drawArrow(doc, cx - 15, r1y + 32, p2x + 4, nodeY + 5, '#217A66');
     drawArrow(doc, p2x + 8, nodeY + nodeH - 3, cx + 14, r2y + 4, '#B16427');
     drawArrow(doc, cx + 15, r2y + 4, p1x + nodeW - 4, nodeY + nodeH - 3, '#217A66');
@@ -227,7 +210,7 @@ function drawTopicDiagram(doc, answer, x, y, width) {
       box(`${card.title}\n${card.detail}\n\nExample: ${card.example}`, bx, top, bw, cardH, card.fill, 8.4);
       drawArrow(doc, bx + bw / 2, top + cardH + 2, x + width / 2, y + 141, '#7892B5');
     });
-    box('PREDICTION  ·  DECISION  ·  ACTION', x + width * 0.22, y + 142, width * 0.56, 23, '#FFF0D9', 8.5);
+    box('PREDICTION  Â·  DECISION  Â·  ACTION', x + width * 0.22, y + 142, width * 0.56, 23, '#FFF0D9', 8.5);
     return 170;
   }
 
@@ -287,9 +270,19 @@ export default function generatePDF(data, fileName, options = {}) {
       doc.font('KalamBold').fontSize(revision ? 12.5 : 17).fillColor(accents.Keywords).text(`Q${index + 1}. `, { continued: true });
       doc.font('KalamBold').fillColor(blue).text(question, { width: textWidth, lineGap: revision ? 1 : 3 });
       if (revision) {
+        if (answer.isMath) {
+          paragraph('FINAL: ' + answer.conclusion, 10, accents['Final Answer']);
+          doc.moveDown(0.18); return;
+        }
         const words = (answer.keywords.length ? answer.keywords : answer.points.map(p => p.title || p.desc)).slice(0, 7);
         paragraph(`KEYWORDS: ${words.join(' - ').toLocaleUpperCase()}`, 9.5, accents.Keywords);
         doc.moveDown(0.18); return;
+      }
+      if (answer.isMath) {
+        if (answer.explanation) { heading('Worked Solution'); paragraph(answer.explanation, 13.5, blue); }
+        if (answer.conclusion) { heading('Final Answer'); paragraph(answer.conclusion, 14, accents['Final Answer']); }
+        doc.moveDown(0.65);
+        return;
       }
       if (answer.definition) { heading('Definition'); paragraph(answer.definition); }
       if (answer.explanation) { heading('Explanation'); paragraph(answer.explanation); }
