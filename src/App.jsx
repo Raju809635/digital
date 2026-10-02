@@ -20,7 +20,9 @@ function AnswerItem({ answer, index, expanded, onToggle }) {
       <h3>Definition</h3><p>{answer.definition}</p>
       <h3>Explanation</h3><p>{answer.explanation}</p>
       <h3>Key points</h3><ul>{answer.keyPoints.map((point, i) => <li key={i}>{point}</li>)}</ul>
+      {answer.diagram && !/^not needed\.?$/i.test(answer.diagram.trim()) && <><h3>Diagram</h3><p className="diagram-placeholder">{answer.diagram}</p></>}
       <h3>Conclusion</h3><p>{answer.conclusion}</p>
+      {!!answer.keywords?.length && <><h3>Keywords</h3><p className="keywords">{answer.keywords.map(word => word.toLocaleUpperCase()).join(' · ')}</p></>}
       <p className="write-hint"><Sparkles size={15}/> Write this structure clearly for full marks.</p>
       <button className="listen-button" onClick={speak}>{speaking ? <Pause size={16}/> : <Volume2 size={16}/>} {speaking ? 'Pause audio' : 'Listen · 2x'}</button>
     </div>}
@@ -48,11 +50,13 @@ function PaperSheet({ answers, subject, revision = false, sheetRef }) {
     <div className="paper-brand">DIGITAL ORBIT <span>EXAM ANSWER NOTES</span></div>
     <h1>{revision ? 'One-page revision' : subject || 'Exam answers'}</h1>
     {answers.map((answer, index) => <section className="paper-answer" key={index}>
-      <h2>Q{index + 1}. {answer.question}</h2>
-      {revision ? <p><b>KEYWORDS:</b> {answer.keywords.join(' · ') || answer.keyPoints.join(' · ')}</p> : <>
+      <h2><span>Q{index + 1}.</span> {answer.question}</h2>
+      {revision ? <p><b>KEYWORDS:</b> {(answer.keywords.length ? answer.keywords : answer.keyPoints).map(word => word.toLocaleUpperCase()).join(' · ')}</p> : <>
         <h3>Definition</h3><p>{answer.definition}</p><h3>Explanation</h3><p>{answer.explanation}</p>
         <h3>Key points</h3><ul>{answer.keyPoints.map((point, i) => <li key={i}>{point}</li>)}</ul>
+        {answer.diagram && !/^not needed\.?$/i.test(answer.diagram.trim()) && <><h3>Diagram</h3><p>{answer.diagram}</p></>}
         <h3>Conclusion</h3><p>{answer.conclusion}</p>
+        {!!answer.keywords?.length && <><h3>Keywords</h3><p>{answer.keywords.map(word => word.toLocaleUpperCase()).join(' · ')}</p></>}
       </>}
     </section>)}
   </div>;
@@ -64,16 +68,22 @@ async function downloadPdf(node, filename, onePage = false) {
   const canvas = await html2canvas(node, { scale: 1.5, backgroundColor: '#fff', useCORS: true });
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
   const width = pdf.internal.pageSize.getWidth(); const height = canvas.height * width / canvas.width;
-  const image = canvas.toDataURL('image/jpeg', 0.92);
-  if (onePage || height <= pdf.internal.pageSize.getHeight()) pdf.addImage(image, 'JPEG', 0, 0, width, Math.min(height, pdf.internal.pageSize.getHeight()));
+  const addPageNumber = (target, page) => {
+    const ctx = target.getContext('2d'); ctx.save(); ctx.fillStyle = '#173f83'; ctx.font = '32px Kalam, cursive'; ctx.textAlign = 'right'; ctx.textBaseline = 'top';
+    ctx.fillText(`Page ${page}`, target.width - 50, 24); ctx.restore();
+  };
+  if (onePage || height <= pdf.internal.pageSize.getHeight()) {
+    addPageNumber(canvas, 1); pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, width, Math.min(height, pdf.internal.pageSize.getHeight()));
+  }
   else {
     const pageHeightPx = canvas.width * pdf.internal.pageSize.getHeight() / width;
     let offset = 0;
+    let page = 1;
     while (offset < canvas.height) {
       if (offset) pdf.addPage();
       const slice = document.createElement('canvas'); slice.width = canvas.width; slice.height = Math.min(pageHeightPx, canvas.height - offset);
-      slice.getContext('2d').drawImage(canvas, 0, offset, canvas.width, slice.height, 0, 0, canvas.width, slice.height);
-      pdf.addImage(slice.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, width, slice.height * width / canvas.width); offset += pageHeightPx;
+      slice.getContext('2d').drawImage(canvas, 0, offset, canvas.width, slice.height, 0, 0, canvas.width, slice.height); addPageNumber(slice, page);
+      pdf.addImage(slice.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, width, slice.height * width / canvas.width); offset += pageHeightPx; page++;
     }
   }
   pdf.save(filename);
