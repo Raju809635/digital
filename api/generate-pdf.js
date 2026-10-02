@@ -1,5 +1,7 @@
 import generatePDF from '../generatePdf.cjs';
 
+export const config = { maxDuration: 60 };
+
 export default async function handler(request, response) {
   response.setHeader('Cache-Control', 'no-store');
   if (request.method !== 'POST') return response.status(405).json({ error: 'Use POST to download a PDF.' });

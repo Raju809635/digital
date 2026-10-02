@@ -48,16 +48,19 @@ async function readPdf(file) {
 async function downloadPdf({ title, answers, revision }) {
   const response = await fetch('/api/generate-pdf', {
     method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ title, answers, revision })
+    body: JSON.stringify({ title, answers, revision }), signal: AbortSignal.timeout(60_000)
   });
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}));
     throw new Error(payload.error || 'Could not create the PDF. Please try again.');
   }
-  const blob = await response.blob(); const url = URL.createObjectURL(blob);
+  if (!response.headers.get('content-type')?.includes('application/pdf')) throw new Error('The server did not return a PDF. Please try again.');
+  const blob = await response.blob();
+  if (!blob.size) throw new Error('The generated PDF is empty. Please try again.');
+  const url = URL.createObjectURL(blob);
   const link = document.createElement('a'); link.href = url;
   link.download = revision ? 'digital-orbit-revision.pdf' : 'digital-orbit-handwritten-answers.pdf';
-  document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
+  document.body.appendChild(link); link.click(); link.remove(); window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
 export default function App() {
@@ -68,6 +71,7 @@ export default function App() {
   const [openIndex, setOpenIndex] = useState(0);
   const [loading, setLoading] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
+  const [pdfError, setPdfError] = useState('');
   const [fileName, setFileName] = useState('');
   const [error, setError] = useState('');
   const fileInput = useRef(null);
@@ -95,9 +99,9 @@ export default function App() {
 
   const exportPdf = async revision => {
     if (!answers.length) return;
-    setPdfBusy(true); setError('');
+    setPdfBusy(true); setPdfError('');
     try { await downloadPdf({ title: subject, answers, revision }); }
-    catch (exportError) { console.error('[pdf-export]', exportError); setError('Could not create the PDF. Please try again.'); }
+    catch (exportError) { console.error('[pdf-export]', exportError); setPdfError(exportError.name === 'TimeoutError' ? 'PDF generation took too long. Please try again.' : exportError.message || 'Could not create the PDF. Please try again.'); }
     finally { setPdfBusy(false); }
   };
 
@@ -121,7 +125,7 @@ export default function App() {
 
     {answers.length > 0 && <section className="results" id="results"><div className="results-heading"><div><span className="section-kicker">YOUR EXAM ANSWERS</span><h2>{subject}</h2><p>{answers.length} ready-to-review {answers.length === 1 ? 'answer' : 'answers'}</p></div><FileText size={32}/></div>
       <div className="answers-list">{answers.map((answer, index) => <AnswerItem key={`${index}-${answer.question}`} answer={answer} index={index} expanded={openIndex===index} onToggle={() => setOpenIndex(openIndex===index ? -1 : index)}/>)}</div>
-      <div className="download-area"><span className="section-kicker">TAKE YOUR NOTES WITH YOU</span><h2>Ready to write.</h2><p>Notebook-style pages with clear headings and key terms.</p><div className="download-actions"><button className="download-primary" disabled={pdfBusy} onClick={() => exportPdf(false)}><Download size={17}/>{pdfBusy ? 'Creating PDF…' : 'Download Handwritten PDF'}</button><button className="download-secondary" disabled={pdfBusy} onClick={() => exportPdf(true)}><FileText size={17}/>1-Page Revision PDF</button></div></div>
+      <div className="download-area"><span className="section-kicker">TAKE YOUR NOTES WITH YOU</span><h2>Ready to write.</h2><p>Notebook-style pages with clear headings and key terms.</p><div className="download-actions"><button className="download-primary" disabled={pdfBusy} onClick={() => exportPdf(false)}><Download size={17}/>{pdfBusy ? 'Creating PDF…' : 'Download Handwritten PDF'}</button><button className="download-secondary" disabled={pdfBusy} onClick={() => exportPdf(true)}><FileText size={17}/>{pdfBusy ? 'Creating PDF…' : '1-Page Revision PDF'}</button></div>{pdfError && <p className="error-message pdf-error" role="alert">{pdfError}</p>}</div>
     </section>}
     {loading && <div className="loading-note"><LoaderCircle className="spin" size={18}/> Turning your questions into scoring answers…</div>}
     <footer>Digital Orbit <span>·</span> Make tonight count.</footer>
