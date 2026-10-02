@@ -2,8 +2,12 @@ const fs = require('node:fs');
 const path = require('node:path');
 const PDFDocument = require('pdfkit');
 
-const regularFont = path.join(__dirname, 'fonts', 'Kalam-Regular.ttf');
-const boldFont = path.join(__dirname, 'fonts', 'Kalam-Bold.ttf');
+function fontPath(file) {
+  const candidates = [path.join(__dirname, 'fonts', file), path.join(process.cwd(), 'fonts', file)];
+  const match = candidates.find(candidate => fs.existsSync(candidate));
+  if (!match) throw Object.assign(new Error(`PDF font asset is missing: ${file}`), { code: 'PDF_FONT_MISSING' });
+  return match;
+}
 const blue = '#173F83';
 
 function normalizeAnswers(data = {}) {
@@ -25,6 +29,9 @@ function normalizeAnswers(data = {}) {
 function generatePDF(data, fileName, options = {}) {
   const answers = normalizeAnswers(data);
   const revision = Boolean(options.revision);
+  let regularFont; let boldFont;
+  try { regularFont = fontPath('Kalam-Regular.ttf'); boldFont = fontPath('Kalam-Bold.ttf'); }
+  catch (error) { return Promise.reject(error); }
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ size: 'A4', margins: { top: 66, bottom: 54, left: 78, right: 48 }, bufferPages: false });
     const chunks = [];

@@ -17,6 +17,9 @@ export default async function handler(request, response) {
     return response.status(200).send(pdf);
   } catch (error) {
     console.error('[generate-pdf]', error.message);
-    return response.status(500).json({ error: 'Could not create the PDF. Please try again.' });
+    const message = error.code === 'PDF_FONT_MISSING'
+      ? 'The handwritten font is missing from this deployment. Please try again later.'
+      : 'Could not create the PDF. Please try again.';
+    return response.status(500).json({ error: message });
   }
 }
