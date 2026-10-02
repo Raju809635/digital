@@ -1,4 +1,4 @@
-import { evaluateAnswer } from '../lib/grok.js';
+import { evaluateAnswer } from '../lib/groq.js';
 
 export const config = { maxDuration: 35 };
 

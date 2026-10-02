@@ -1,4 +1,4 @@
-import { generateStudyPlan } from '../lib/grok.js';
+import { generateStudyPlan } from '../lib/groq.js';
 
 export const config = { maxDuration: 60 };
 
