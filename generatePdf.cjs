@@ -33,7 +33,8 @@ function generatePDF(data, fileName, options = {}) {
   try { regularFont = fontPath('Kalam-Regular.ttf'); boldFont = fontPath('Kalam-Bold.ttf'); }
   catch (error) { return Promise.reject(error); }
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: 'A4', margins: { top: 66, bottom: 54, left: 78, right: 48 }, bufferPages: false });
+    // Avoid loading PDFKit's built-in Helvetica metrics; every printed element uses embedded Kalam.
+    const doc = new PDFDocument({ size: 'A4', margins: { top: 66, bottom: 54, left: 78, right: 48 }, bufferPages: false, font: false });
     const chunks = [];
     let pageNumber = 0;
     doc.registerFont('Kalam', regularFont);
