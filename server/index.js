@@ -3,6 +3,7 @@ import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { generateAnswers } from '../lib/groq.js';
+import generatePDF from '../generatePdf.cjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const dev = process.argv.includes('--dev');
@@ -17,9 +18,9 @@ async function loadEnv() {
   } catch (error) { if (error.code !== 'ENOENT') throw error; }
 }
 function send(res, status, payload) { res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }); res.end(JSON.stringify(payload)); }
-async function bodyJson(req) {
+async function bodyJson(req, maxSize = 24_000) {
   let raw = '';
-  for await (const chunk of req) { raw += chunk; if (raw.length > 24_000) throw Object.assign(new Error('Request is too large.'), { status: 413 }); }
+  for await (const chunk of req) { raw += chunk; if (raw.length > maxSize) throw Object.assign(new Error('Request is too large.'), { status: 413 }); }
   try { return JSON.parse(raw || '{}'); } catch { throw Object.assign(new Error('Send valid JSON.'), { status: 400 }); }
 }
 
@@ -29,6 +30,21 @@ const server = createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
   if (url.pathname.startsWith('/api/')) {
     if (req.method === 'GET' && url.pathname === '/api/health') return send(res, 200, { ok: true });
+    if (req.method === 'POST' && url.pathname === '/api/generate-pdf') {
+      try {
+        const input = await bodyJson(req, 250_000);
+        if (!Array.isArray(input.answers) || !input.answers.length) return send(res, 400, { error: 'There are no answers to download.' });
+        if (input.answers.length > 12) return send(res, 400, { error: 'Download up to 12 answers at a time.' });
+        const pdf = await generatePDF({ title: input.title || input.subject || 'Exam Answer Notes', answers: input.answers }, undefined, { revision: Boolean(input.revision) });
+        const filename = input.revision ? 'digital-orbit-revision.pdf' : 'digital-orbit-handwritten-answers.pdf';
+        res.writeHead(200, { 'content-type': 'application/pdf', 'content-disposition': `attachment; filename="${filename}"`, 'content-length': pdf.length, 'cache-control': 'no-store' });
+        return res.end(pdf);
+      } catch (error) {
+        console.error('[generate-pdf]', error.message);
+        const status = error.status || 500;
+        return send(res, status, { error: status === 413 ? error.message : 'Could not create the PDF. Please try again.' });
+      }
+    }
     if (req.method === 'POST' && url.pathname === '/api/generate-answers') {
       try {
         const input = await bodyJson(req);

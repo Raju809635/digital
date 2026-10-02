@@ -45,48 +45,19 @@ async function readPdf(file) {
   return text.slice(0, 16000);
 }
 
-function PaperSheet({ answers, subject, revision = false, sheetRef }) {
-  return <div ref={sheetRef} className={`paper-sheet ${revision ? 'revision-sheet' : ''}`}>
-    <div className="paper-brand">DIGITAL ORBIT <span>EXAM ANSWER NOTES</span></div>
-    <h1>{revision ? 'One-page revision' : subject || 'Exam answers'}</h1>
-    {answers.map((answer, index) => <section className="paper-answer" key={index}>
-      <h2><span>Q{index + 1}.</span> {answer.question}</h2>
-      {revision ? <p><b>KEYWORDS:</b> {(answer.keywords.length ? answer.keywords : answer.keyPoints).map(word => word.toLocaleUpperCase()).join(' · ')}</p> : <>
-        <h3>Definition</h3><p>{answer.definition}</p><h3>Explanation</h3><p>{answer.explanation}</p>
-        <h3>Key points</h3><ul>{answer.keyPoints.map((point, i) => <li key={i}>{point}</li>)}</ul>
-        {answer.diagram && !/^not needed\.?$/i.test(answer.diagram.trim()) && <><h3>Diagram</h3><p>{answer.diagram}</p></>}
-        <h3>Conclusion</h3><p>{answer.conclusion}</p>
-        {!!answer.keywords?.length && <><h3>Keywords</h3><p>{answer.keywords.map(word => word.toLocaleUpperCase()).join(' · ')}</p></>}
-      </>}
-    </section>)}
-  </div>;
-}
-
-async function downloadPdf(node, filename, onePage = false) {
-  if (!node) throw new Error('The PDF page is not available.');
-  const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import('html2canvas'), import('jspdf')]);
-  const canvas = await html2canvas(node, { scale: 1.5, backgroundColor: '#fff', useCORS: true });
-  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
-  const width = pdf.internal.pageSize.getWidth(); const height = canvas.height * width / canvas.width;
-  const addPageNumber = (target, page) => {
-    const ctx = target.getContext('2d'); ctx.save(); ctx.fillStyle = '#173f83'; ctx.font = '32px Kalam, cursive'; ctx.textAlign = 'right'; ctx.textBaseline = 'top';
-    ctx.fillText(`Page ${page}`, target.width - 50, 24); ctx.restore();
-  };
-  if (onePage || height <= pdf.internal.pageSize.getHeight()) {
-    addPageNumber(canvas, 1); pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, width, Math.min(height, pdf.internal.pageSize.getHeight()));
+async function downloadPdf({ title, answers, revision }) {
+  const response = await fetch('/api/generate-pdf', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ title, answers, revision })
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.error || 'Could not create the PDF. Please try again.');
   }
-  else {
-    const pageHeightPx = canvas.width * pdf.internal.pageSize.getHeight() / width;
-    let offset = 0;
-    let page = 1;
-    while (offset < canvas.height) {
-      if (offset) pdf.addPage();
-      const slice = document.createElement('canvas'); slice.width = canvas.width; slice.height = Math.min(pageHeightPx, canvas.height - offset);
-      slice.getContext('2d').drawImage(canvas, 0, offset, canvas.width, slice.height, 0, 0, canvas.width, slice.height); addPageNumber(slice, page);
-      pdf.addImage(slice.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, width, slice.height * width / canvas.width); offset += pageHeightPx; page++;
-    }
-  }
-  pdf.save(filename);
+  const blob = await response.blob(); const url = URL.createObjectURL(blob);
+  const link = document.createElement('a'); link.href = url;
+  link.download = revision ? 'digital-orbit-revision.pdf' : 'digital-orbit-handwritten-answers.pdf';
+  document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
 }
 
 export default function App() {
@@ -99,7 +70,7 @@ export default function App() {
   const [pdfBusy, setPdfBusy] = useState(false);
   const [fileName, setFileName] = useState('');
   const [error, setError] = useState('');
-  const fileInput = useRef(null); const answersPaper = useRef(null); const revisionPaper = useRef(null);
+  const fileInput = useRef(null);
 
   const chooseFile = async event => {
     const file = event.target.files?.[0]; if (!file) return;
@@ -125,7 +96,7 @@ export default function App() {
   const exportPdf = async revision => {
     if (!answers.length) return;
     setPdfBusy(true); setError('');
-    try { await document.fonts.ready; await downloadPdf(revision ? revisionPaper.current : answersPaper.current, revision ? 'digital-orbit-revision.pdf' : 'digital-orbit-handwritten-answers.pdf', revision); }
+    try { await downloadPdf({ title: subject, answers, revision }); }
     catch (exportError) { console.error('[pdf-export]', exportError); setError('Could not create the PDF. Please try again.'); }
     finally { setPdfBusy(false); }
   };
@@ -151,7 +122,6 @@ export default function App() {
     {answers.length > 0 && <section className="results" id="results"><div className="results-heading"><div><span className="section-kicker">YOUR EXAM ANSWERS</span><h2>{subject}</h2><p>{answers.length} ready-to-review {answers.length === 1 ? 'answer' : 'answers'}</p></div><FileText size={32}/></div>
       <div className="answers-list">{answers.map((answer, index) => <AnswerItem key={`${index}-${answer.question}`} answer={answer} index={index} expanded={openIndex===index} onToggle={() => setOpenIndex(openIndex===index ? -1 : index)}/>)}</div>
       <div className="download-area"><span className="section-kicker">TAKE YOUR NOTES WITH YOU</span><h2>Ready to write.</h2><p>Notebook-style pages with clear headings and key terms.</p><div className="download-actions"><button className="download-primary" disabled={pdfBusy} onClick={() => exportPdf(false)}><Download size={17}/>{pdfBusy ? 'Creating PDF…' : 'Download Handwritten PDF'}</button><button className="download-secondary" disabled={pdfBusy} onClick={() => exportPdf(true)}><FileText size={17}/>1-Page Revision PDF</button></div></div>
-      <div className="export-hidden" aria-hidden="true"><PaperSheet sheetRef={answersPaper} answers={answers} subject={subject}/><PaperSheet sheetRef={revisionPaper} answers={answers} subject={subject} revision/></div>
     </section>}
     {loading && <div className="loading-note"><LoaderCircle className="spin" size={18}/> Turning your questions into scoring answers…</div>}
     <footer>Digital Orbit <span>·</span> Make tonight count.</footer>

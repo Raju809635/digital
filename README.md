@@ -1,6 +1,6 @@
 # Digital Orbit – Night Mode
 
-Digital Orbit is a one-page exam answer generator. Students paste questions or upload a text-based PDF, choose Pass Mode or Score Mode, then review structured answers and download notebook-style PDFs.
+Digital Orbit is a one-page exam answer generator. Students paste questions or upload a text-based PDF, choose Pass Mode or Score Mode, then review structured answers and download notebook-style PDFs generated on the server with PDFKit.
 
 ## Run locally
 
@@ -9,7 +9,7 @@ Digital Orbit is a one-page exam answer generator. Students paste questions or u
 3. Run `npm install` once, then `npm run dev`.
 4. Open `http://127.0.0.1:5173`.
 
-The Node server keeps the provider key on the server and serves `/api/generate-answers`. The default model is `openai/gpt-oss-120b`; set `GROQ_MODEL` to another model available to your Groq API account if needed.
+The Node server keeps the provider key on the server and serves `/api/generate-answers` and `/api/generate-pdf`. The default model is `openai/gpt-oss-120b`; set `GROQ_MODEL` to another model available to your Groq API account if needed.
 
 ## Deploy to Vercel
 
@@ -18,6 +18,8 @@ Import the repository in Vercel using the Vite preset, build command `npm run bu
 ## Notes
 
 - PDF upload extracts selectable text in the browser. Scanned image-only PDFs are not OCR processed.
-- The handwritten-style answer PDF is rendered from a notebook-like HTML sheet. The 1-page revision export condenses each answer to keywords.
+- `generatePdf.cjs` exports all answers or a keyword-only revision page. It accepts either `answers` with string `keyPoints` or a single question with `{ points: [{ title, desc }] }`.
+- PDFKit embeds the Kalam regular and bold font files under `fonts/`; the font license is included alongside them.
+- To create a PDF from a Node script in this ES module project, use `const generatePDF = require('./generatePdf.cjs')`, then call `generatePDF(data, 'ml-answer.pdf')`.
 - Browser speech synthesis reads answers aloud inline; it does not create an audio file.
 - Student users do not need or receive the provider key.
