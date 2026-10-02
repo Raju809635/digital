@@ -10,3 +10,7 @@
 The Node server keeps the OpenAI key server-side and exposes `/api/study-plan` and `/api/check-answer`. The app uses `gpt-4.1-mini` by default; set `OPENAI_MODEL` in `.env` to use a different compatible OpenAI model. Requests incur usage on the API account attached to that key.
 
 For production, run `npm run build` followed by `npm start`.
+
+## Deploy to Vercel
+
+Import this repository in Vercel with the Vite preset, build command `npm run build`, and output directory `dist` (also set in `vercel.json`). Add `OPENAI_API_KEY` under Environment Variables before deploying. Optionally set `OPENAI_MODEL`; it defaults to `gpt-4.1-mini`. The `/api` directory contains the serverless functions used by the deployed frontend.
