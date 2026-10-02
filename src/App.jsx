@@ -142,7 +142,7 @@ function App() {
       <div className="input-shell"><Sparkles size={17}/><input id="topic-input" value={topic} onChange={e=>setTopic(e.target.value)} onKeyDown={e=>e.key==='Enter'&&generate()} placeholder="Subject, topic, or paste that scary question…"/><span className="input-shortcut">↵</span></div>
       <div className="goal-row"><span className="goal-label">MY GOAL</span>{[['pass','Just pass','40 marks'],['safe','Safe score','60+'],['topper','Topper mode','Let’s go']].map(([id,label,sub])=><button key={id} onClick={()=>setGoal(id)} className={`goal-option ${goal===id?'selected':''}`}><span className="radio-dot"/><span>{label}<small>{sub}</small></span></button>)}</div>
       <button className="primary-button" onClick={generate}><span>{loading?'Getting your notes…':'Get me pass marks'}</span>{loading?<span className="button-spinner"/>:<ArrowRight size={18}/>}</button>
-      <div className="privacy-note"><span>✳</span> {apiConfigured ? 'Grok is connected. Your key stays on this server.' : 'Add your Grok key in .env to generate your plan.'}</div>
+      <div className="privacy-note"><span>✳</span> {apiConfigured ? 'No account. No fuss. Just the useful bits.' : 'Study mode is taking a quick breather. Try again in a bit.'}</div>
     </section>
 
     <section className="results-section" id="results">

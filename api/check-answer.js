@@ -13,6 +13,8 @@ export default async function handler(request, response) {
     return response.status(200).json(result);
   } catch (error) {
     console.error('[check-answer]', error.message);
-    return response.status(error.status || 500).json({ error: error.message || 'Could not check that answer.' });
+    const status = error.status || 500;
+    const message = status === 429 ? 'The quick check is busy right now. Try again in a minute.' : status >= 500 ? 'The quick check is taking a breather. Try again in a bit.' : error.message;
+    return response.status(status).json({ error: message || 'Could not check that answer.' });
   }
 }

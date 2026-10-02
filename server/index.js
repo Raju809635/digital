@@ -123,7 +123,9 @@ const server = createServer(async (req, res) => {
         return send(res, 200, plan);
       } catch (error) {
         console.error('[study-plan]', error.message);
-        return send(res, error.status || 500, { error: error.message || 'Something went wrong. Try again.' });
+        const status = error.status || 500;
+        const message = status === 429 ? 'Study mode is busy right now. Try again in a minute.' : status >= 500 ? 'Study mode is taking a quick breather. Try again in a bit.' : error.message;
+        return send(res, status, { error: message || 'Something went wrong. Try again.' });
       }
     }
     if (req.method === 'POST' && url.pathname === '/api/check-answer') {
@@ -133,7 +135,9 @@ const server = createServer(async (req, res) => {
         return send(res, 200, await evaluateAnswer({ question: input.question.slice(0, 1000), expected: input.expected.slice(0, 1000), answer: input.answer.slice(0, 1000) }));
       } catch (error) {
         console.error('[check-answer]', error.message);
-        return send(res, error.status || 500, { error: error.message || 'Could not check that answer.' });
+        const status = error.status || 500;
+        const message = status === 429 ? 'The quick check is busy right now. Try again in a minute.' : status >= 500 ? 'The quick check is taking a breather. Try again in a bit.' : error.message;
+        return send(res, status, { error: message || 'Could not check that answer.' });
       }
     }
     return send(res, 404, { error: 'API route not found.' });

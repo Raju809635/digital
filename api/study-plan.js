@@ -12,6 +12,8 @@ export default async function handler(request, response) {
     return response.status(200).json(plan);
   } catch (error) {
     console.error('[study-plan]', error.message);
-    return response.status(error.status || 500).json({ error: error.message || 'Something went wrong. Try again.' });
+    const status = error.status || 500;
+    const message = status === 429 ? 'Study mode is busy right now. Try again in a minute.' : status >= 500 ? 'Study mode is taking a quick breather. Try again in a bit.' : error.message;
+    return response.status(status).json({ error: message || 'Something went wrong. Try again.' });
   }
 }
