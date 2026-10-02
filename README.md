@@ -18,8 +18,8 @@ Import the repository in Vercel using the Vite preset, build command `npm run bu
 ## Notes
 
 - PDF upload extracts selectable text in the browser. Scanned image-only PDFs are not OCR processed.
-- `generatePdf.cjs` exports all answers or a keyword-only revision page. It accepts either `answers` with string `keyPoints` or a single question with `{ points: [{ title, desc }] }`.
+- `generatePdf.mjs` exports all answers or a keyword-only revision page. It accepts either `answers` with string `keyPoints` or a single question with `{ points: [{ title, desc }] }`.
 - PDFKit embeds the Kalam regular and bold font files under `fonts/`; the font license is included alongside them.
-- To create a PDF from a Node script in this ES module project, use `const generatePDF = require('./generatePdf.cjs')`, then call `generatePDF(data, 'ml-answer.pdf')`.
+- To create a PDF from a Node script in this ES module project, import `generatePDF` from `./generatePdf.mjs`, then call `await generatePDF(data, 'ml-answer.pdf')`.
 - Browser speech synthesis reads answers aloud inline; it does not create an audio file.
 - Student users do not need or receive the provider key.

@@ -3,7 +3,7 @@ import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { generateAnswers } from '../lib/groq.js';
-import generatePDF from '../generatePdf.cjs';
+import generatePDF from '../generatePdf.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const dev = process.argv.includes('--dev');

@@ -1,4 +1,4 @@
-import generatePDF from '../generatePdf.cjs';
+import generatePDF from '../generatePdf.mjs';
 
 export const config = { maxDuration: 60 };
 
@@ -17,8 +17,10 @@ export default async function handler(request, response) {
     return response.status(200).send(pdf);
   } catch (error) {
     console.error('[generate-pdf]', error.stack || error.message);
+    const missing = String(error.message || '').match(/Cannot find module ['"]([^'"]+)['"]/);
+    const missingName = missing?.[1].split(/[\\/]/).pop();
     const diagnostic = String(error.code || error.name || 'PDF_ERROR');
-    const details = String(error.message || 'Unknown PDF generation error').replace(/[A-Z]:\\[^\s]+|\/var\/task\/[^\s]+/g, '[server path]').slice(0, 180);
+    const details = missingName ? `Missing module: ${missingName}` : String(error.message || 'Unknown PDF generation error').replace(/[A-Z]:\\[^\s]+|\/var\/task\/[^\s]+/g, '[server path]').slice(0, 180);
     return response.status(500).json({ error: 'Could not create the PDF.', diagnostic, details });
   }
 }
