@@ -4,6 +4,7 @@ import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { generateAnswers } from '../lib/groq.js';
 import generatePDF from '../generatePdf.mjs';
+import { countExamQuestions } from '../lib/format.js';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const dev = process.argv.includes('--dev');
@@ -34,7 +35,7 @@ const server = createServer(async (req, res) => {
       try {
         const input = await bodyJson(req, 250_000);
         if (!Array.isArray(input.answers) || !input.answers.length) return send(res, 400, { error: 'There are no answers to download.' });
-        if (input.answers.length > 12) return send(res, 400, { error: 'Download up to 12 answers at a time.' });
+        if (input.answers.length > 5) return send(res, 400, { error: 'Download up to 5 answers at a time.' });
         const pdf = await generatePDF({ title: input.title || input.subject || 'Exam Answer Notes', answers: input.answers }, undefined, { revision: Boolean(input.revision) });
         const filename = input.revision ? 'digital-orbit-revision.pdf' : 'digital-orbit-handwritten-answers.pdf';
         res.writeHead(200, { 'content-type': 'application/pdf', 'content-disposition': `attachment; filename="${filename}"`, 'content-length': pdf.length, 'cache-control': 'no-store' });
@@ -50,7 +51,8 @@ const server = createServer(async (req, res) => {
         const input = await bodyJson(req);
         if (typeof input.questions !== 'string' || !input.questions.trim()) return send(res, 400, { error: 'Paste your questions or upload a PDF to get started.' });
         if (input.questions.length > 16_000) return send(res, 413, { error: 'Keep the questions under 16,000 characters.' });
-        if (!['pass', 'score'].includes(input.mode)) return send(res, 400, { error: 'Choose Pass Mode or Score Mode.' });
+        if (countExamQuestions(input.questions) > 5) return send(res, 400, { error: 'Please send up to 5 questions at a time for better answers.' });
+        if (!['5', '10'].includes(String(input.mode))) return send(res, 400, { error: 'Choose 5 Marks or 10 Marks.' });
         const result = await generateAnswers({ questions: input.questions.trim(), mode: input.mode });
         return send(res, 200, result);
       } catch (error) {

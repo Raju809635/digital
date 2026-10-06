@@ -1,4 +1,5 @@
 import { generateAnswers } from '../lib/groq.js';
+import { countExamQuestions } from '../lib/format.js';
 
 export const config = { maxDuration: 60 };
 
@@ -8,7 +9,9 @@ export default async function handler(request, response) {
   const { questions, mode } = request.body || {};
   if (typeof questions !== 'string' || !questions.trim()) return response.status(400).json({ error: 'Paste your questions or upload a PDF to get started.' });
   if (questions.length > 16_000) return response.status(413).json({ error: 'Keep the questions under 16,000 characters.' });
-  if (!['pass', 'score'].includes(mode)) return response.status(400).json({ error: 'Choose Pass Mode or Score Mode.' });
+  const questionCount = countExamQuestions(questions);
+  if (questionCount > 5) return response.status(400).json({ error: 'Please send up to 5 questions at a time for better answers.' });
+  if (!['5', '10'].includes(String(mode))) return response.status(400).json({ error: 'Choose 5 Marks or 10 Marks.' });
   try { return response.status(200).json(await generateAnswers({ questions: questions.trim(), mode })); }
   catch (error) {
     console.error('[generate-answers]', error.message);

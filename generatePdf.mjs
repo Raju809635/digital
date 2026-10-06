@@ -25,7 +25,7 @@ function normalizeAnswers(data = {}) {
     const items = answer.keyPoints || answer.points || [];
     const points = items.map(point => {
       if (typeof point !== 'string') return { title: normalizePdfText(point.title), desc: normalizePdfText(point.desc) };
-      const split = point.match(/^([^:â€“-]{2,55})\s*[:â€“-]\s*(.+)$/);
+      const split = point.match(/^([^:–—-]{2,55})\s*[:–—-]\s*(.+)$/);
       return split ? { title: normalizePdfText(split[1]), desc: normalizePdfText(split[2]) } : { title: '', desc: normalizePdfText(point) };
     });
     return {
@@ -158,11 +158,11 @@ function drawTopicDiagram(doc, answer, x, y, width) {
 
   if (/osi|open systems interconnection/.test(topic)) {
     const layers = [
-      ['7  Application', 'HTTP  Â·  DNS'], ['6  Presentation', 'TLS  Â·  JPEG'], ['5  Session', 'RPC  Â·  NetBIOS'],
-      ['4  Transport', 'TCP  Â·  UDP'], ['3  Network', 'IP  Â·  ICMP'], ['2  Data Link', 'Ethernet  Â·  Wi-Fi'], ['1  Physical', 'Signals  Â·  Bits']
+      ['7  Application', 'HTTP  ·  DNS'], ['6  Presentation', 'TLS  ·  JPEG'], ['5  Session', 'RPC  ·  NetBIOS'],
+      ['4  Transport', 'TCP  ·  UDP'], ['3  Network', 'IP  ·  ICMP'], ['2  Data Link', 'Ethernet  ·  Wi-Fi'], ['1  Physical', 'Signals  ·  Bits']
     ];
     const rowH = 17; const gap = 4; const bx = x + width * 0.15; const bw = width * 0.57;
-    text('OSI MODEL  Â·  7-LAYER STACK', bx, y, bw, 9, '#654C9D');
+    text('OSI MODEL  ·  7-LAYER STACK', bx, y, bw, 9, '#654C9D');
     layers.forEach(([label, protocol], i) => {
       const rowY = y + 15 + i * (rowH + gap);
       box(label, bx, rowY, bw, rowH, i % 2 ? lavender : mint, 8.7);
@@ -184,7 +184,7 @@ function drawTopicDiagram(doc, answer, x, y, width) {
       doc.save().circle(cx, cy + radius, radius).fillAndStroke(i ? mint : lavender, '#7892B5');
       doc.font('KalamBold').fontSize(8.5).fillColor(ink).text(`R${i + 1}`, cx - radius, cy + radius - 6, { width: radius * 2, align: 'center' }).restore();
     });
-    // Allocation edges point resource â†’ process; request edges point process â†’ resource.
+    // Allocation edges point resource → process; request edges point process → resource.
     drawArrow(doc, cx - 15, r1y + 32, p2x + 4, nodeY + 5, '#217A66');
     drawArrow(doc, p2x + 8, nodeY + nodeH - 3, cx + 14, r2y + 4, '#B16427');
     drawArrow(doc, cx + 15, r2y + 4, p1x + nodeW - 4, nodeY + nodeH - 3, '#217A66');
@@ -210,7 +210,7 @@ function drawTopicDiagram(doc, answer, x, y, width) {
       box(`${card.title}\n${card.detail}\n\nExample: ${card.example}`, bx, top, bw, cardH, card.fill, 8.4);
       drawArrow(doc, bx + bw / 2, top + cardH + 2, x + width / 2, y + 141, '#7892B5');
     });
-    box('PREDICTION  Â·  DECISION  Â·  ACTION', x + width * 0.22, y + 142, width * 0.56, 23, '#FFF0D9', 8.5);
+    box('PREDICTION  ·  DECISION  ·  ACTION', x + width * 0.22, y + 142, width * 0.56, 23, '#FFF0D9', 8.5);
     return 170;
   }
 

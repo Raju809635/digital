@@ -1,6 +1,6 @@
-# Digital Orbit – Night Mode
+﻿# Digital Orbit
 
-Digital Orbit is a one-page exam answer generator. Students paste questions or upload a text-based PDF, choose Pass Mode or Score Mode, then review structured answers and download notebook-style PDFs generated on the server with PDFKit.
+Digital Orbit is a one-page exam-answer helper. Paste up to five questions or upload a selectable-text PDF, choose 5 Marks or 10 Marks, then review and download exam-style answers.
 
 ## Run locally
 
@@ -17,9 +17,9 @@ Import the repository in Vercel using the Vite preset, build command `npm run bu
 
 ## Notes
 
-- PDF upload extracts selectable text in the browser. Scanned image-only PDFs are not OCR processed.
-- `generatePdf.mjs` exports all answers or a keyword-only revision page. It accepts either `answers` with string `keyPoints` or a single question with `{ points: [{ title, desc }] }`.
-- PDFKit embeds the Kalam regular and bold font files under `fonts/`; the font license is included alongside them.
-- To create a PDF from a Node script in this ES module project, import `generatePDF` from `./generatePdf.mjs`, then call `await generatePDF(data, 'ml-answer.pdf')`.
-- Browser speech synthesis reads answers aloud inline; it does not create an audio file.
+- PDF upload extracts selectable text in the browser and keeps line order using page positions. Scanned image-only PDFs are not OCR processed.
+- Sessions are capped at five questions. The backend enforces the same limit.
+- 5 Marks produces a focused response; 10 Marks asks for roughly 450-650 words when the question warrants a detailed answer.
+- Math questions use plain-text formulas and a worked-solution layout.
+- `generatePdf.mjs` exports full answers or a one-page revision PDF, using notebook-style layout and the Kalam fonts under `fonts/`.
 - Student users do not need or receive the provider key.
