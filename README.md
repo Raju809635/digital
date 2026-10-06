@@ -9,11 +9,11 @@ Digital Orbit is a one-page exam-answer helper. Paste up to five questions or up
 3. Run `npm install` once, then `npm run dev`.
 4. Open `http://127.0.0.1:5173`.
 
-The Node server keeps the provider key on the server and serves `/api/generate-answers` and `/api/generate-pdf`. The default model is `openai/gpt-oss-120b`; set `GROQ_MODEL` to another model available to your Groq API account if needed.
+The Node server keeps provider keys on the server and serves `/api/generate-answers` and `/api/generate-pdf`. Set `GROQ_API_KEY` to use Groq (`openai/gpt-oss-120b` by default), or `XAI_API_KEY` to use xAI (`grok-4.7` by default). Set `GROQ_MODEL` or `GROK_MODEL` to override the matching provider's default model. If an older deployment has a Groq `gsk_` key stored as `XAI_API_KEY`, the backend detects it and still routes to Groq.
 
 ## Deploy to Vercel
 
-Import the repository in Vercel using the Vite preset, build command `npm run build`, and output directory `dist` (also set in `vercel.json`). Add the server-side secret as `GROQ_API_KEY`. Existing deployments may continue using `XAI_API_KEY`; both names are accepted by the backend. Optionally set `GROQ_MODEL`. The `/api` directory contains the Vercel serverless API routes.
+Import the repository in Vercel using the Vite preset, build command `npm run build`, and output directory `dist` (also set in `vercel.json`). Add the provider's server-side secret as `GROQ_API_KEY` or `XAI_API_KEY`. The name should match its provider; legacy Groq keys stored in `XAI_API_KEY` are also detected by their prefix. Optionally set `GROQ_MODEL` or `GROK_MODEL`. The `/api` directory contains the Vercel serverless API routes.
 
 ## Notes
 
