@@ -15,6 +15,10 @@ The Node server keeps provider keys on the server and serves `/api/generate-answ
 
 Import the repository in Vercel using the Vite preset, build command `npm run build`, and output directory `dist` (also set in `vercel.json`). Add the provider's server-side secret as `GROQ_API_KEY` or `XAI_API_KEY`. The name should match its provider; legacy Groq keys stored in `XAI_API_KEY` are also detected by their prefix. Optionally set `GROQ_MODEL` or `GROK_MODEL`. The `/api` directory contains the Vercel serverless API routes.
 
+Set `VITE_GA_MEASUREMENT_ID` to your GA4 Measurement ID (format `G-XXXXXXXXXX`) in Vercel, then redeploy. Analytics records page views and basic product events such as answer generation, PDF uploads, and PDF downloads; it never sends question text. Tracking remains off if the ID is unset or the visitor has Do Not Track enabled.
+
+The canonical site URL and sitemap use `https://digital-orbit.in/`. Submit `https://digital-orbit.in/sitemap.xml` in Google Search Console and request indexing after deployment; Google may take time to replace old search snippets.
+
 ## Notes
 
 - PDF upload extracts selectable text in the browser and keeps line order using page positions. Scanned image-only PDFs are not OCR processed.

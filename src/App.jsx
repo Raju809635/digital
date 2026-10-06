@@ -1,6 +1,7 @@
 ﻿import { useRef, useState } from 'react';
 import { ChevronDown, FileText, LoaderCircle, Play, Pause, Upload, Download, Sparkles, Volume2 } from 'lucide-react';
 import { countExamQuestions } from '../lib/format.js';
+import { trackEvent } from './analytics.js';
 
 function AnswerItem({ answer, index, expanded, onToggle }) {
   const [speaking, setSpeaking] = useState(false);
@@ -111,7 +112,7 @@ export default function App() {
   const chooseFile = async event => {
     const file = event.target.files?.[0]; if (!file) return;
     setError('');
-    try { setQuestions(await readPdf(file)); setFileName(file.name); }
+    try { setQuestions(await readPdf(file)); setFileName(file.name); trackEvent('questions_pdf_uploaded'); }
     catch (e) { setError(e.message || 'Could not read that PDF.'); }
     event.target.value = '';
   };
@@ -125,6 +126,7 @@ export default function App() {
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'Could not prepare answers. Try again.');
       setSubject(payload.subject || 'Exam answers'); setAnswers(payload.answers || []); setOpenIndex(0);
+      trackEvent('answers_generated', { marks_mode: mode, answer_count: payload.answers?.length || 0 });
       setTimeout(() => document.querySelector('#results')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
     } catch (e) { setError(e.message || 'Could not prepare answers. Try again.'); }
     finally { setLoading(false); }
@@ -133,7 +135,7 @@ export default function App() {
   const exportPdf = async revision => {
     if (!answers.length) return;
     setPdfBusy(true); setPdfError('');
-    try { await downloadPdf({ title: subject, answers, revision }); }
+    try { await downloadPdf({ title: subject, answers, revision }); trackEvent(revision ? 'revision_pdf_downloaded' : 'answers_pdf_downloaded'); }
     catch (exportError) { console.error('[pdf-export]', exportError); setPdfError(exportError.name === 'TimeoutError' ? 'PDF generation took too long. Please try again.' : exportError.message || 'Could not create the PDF. Please try again.'); }
     finally { setPdfBusy(false); }
   };
