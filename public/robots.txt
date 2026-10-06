@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 Disallow: /api/
 
-Sitemap: https://digital-orbit.in/sitemap.xml
+Sitemap: https://www.digital-orbit.in/sitemap.xml
