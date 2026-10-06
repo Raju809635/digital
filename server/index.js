@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { generateAnswers } from '../lib/groq.js';
 import generatePDF from '../generatePdf.mjs';
 import { countExamQuestions } from '../lib/format.js';
+import { getYouTubeTranscript } from '../lib/youtube.js';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const dev = process.argv.includes('--dev');
@@ -36,7 +37,7 @@ const server = createServer(async (req, res) => {
         const input = await bodyJson(req, 250_000);
         if (!Array.isArray(input.answers) || !input.answers.length) return send(res, 400, { error: 'There are no answers to download.' });
         if (input.answers.length > 5) return send(res, 400, { error: 'Download up to 5 answers at a time.' });
-        const pdf = await generatePDF({ title: input.title || input.subject || 'Exam Answer Notes', answers: input.answers }, undefined, { revision: Boolean(input.revision) });
+        const pdf = await generatePDF({ title: input.title || input.subject || 'Exam Answer Notes', answers: input.answers }, undefined, { revision: Boolean(input.revision), videoNotes: Boolean(input.videoNotes) });
         const filename = input.revision ? 'digital-orbit-revision.pdf' : 'digital-orbit-handwritten-answers.pdf';
         res.writeHead(200, { 'content-type': 'application/pdf', 'content-disposition': `attachment; filename="${filename}"`, 'content-length': pdf.length, 'cache-control': 'no-store' });
         return res.end(pdf);
@@ -60,6 +61,22 @@ const server = createServer(async (req, res) => {
         const status = error.status || 500;
         const message = status === 429 ? 'The answer generator is busy right now. Try again in a minute.' : status >= 500 ? 'Could not prepare answers just now. Try again in a bit.' : error.message;
         return send(res, status, { error: message || 'Something went wrong. Try again.' });
+      }
+    }
+    if (req.method === 'POST' && url.pathname === '/api/youtube-notes') {
+      try {
+        const input = await bodyJson(req, 4_000);
+        if (typeof input.url !== 'string' || !input.url.trim()) return send(res, 400, { error: 'Paste a YouTube video link first.' });
+        if (!['5', '10'].includes(String(input.mode))) return send(res, 400, { error: 'Choose 5 Marks or 10 Marks.' });
+        const video = await getYouTubeTranscript(input.url.trim());
+        const questions = `Create study notes from this video transcript. Topic: ${video.title}\n\nTranscript:\n${video.transcript}`;
+        const result = await generateAnswers({ questions, mode: input.mode, notesFromVideo: true });
+        return send(res, 200, { ...result, source: 'youtube', truncated: video.truncated });
+      } catch (error) {
+        console.error('[youtube-notes]', error.message);
+        const status = error.status || (error.name === 'TimeoutError' ? 504 : 500);
+        const message = status === 429 ? 'The answer service is busy. Try again in a minute.' : status >= 500 ? 'Could not prepare notes from that video right now. Try again in a bit.' : error.message;
+        return send(res, status, { error: message || 'Could not prepare notes from this video.' });
       }
     }
     return send(res, 404, { error: 'API route not found.' });

@@ -3,7 +3,7 @@ import { ChevronDown, FileText, LoaderCircle, Play, Pause, Upload, Download, Spa
 import { countExamQuestions } from '../lib/format.js';
 import { trackEvent } from './analytics.js';
 
-function AnswerItem({ answer, index, expanded, onToggle }) {
+function AnswerItem({ answer, index, expanded, onToggle, videoNotes = false }) {
   const [speaking, setSpeaking] = useState(false);
   const speak = () => {
     if (!('speechSynthesis' in window)) return;
@@ -16,7 +16,7 @@ function AnswerItem({ answer, index, expanded, onToggle }) {
   };
   return <article className="answer-item">
     <button className="answer-toggle" onClick={onToggle} aria-expanded={expanded}>
-      <span><small>QUESTION {String(index + 1).padStart(2, '0')}</small>{answer.question}</span><ChevronDown className={expanded ? 'turned' : ''} size={20}/>
+      <span><small>{videoNotes ? 'VIDEO NOTES' : `QUESTION ${String(index + 1).padStart(2, '0')}`}</small>{answer.question}</span><ChevronDown className={expanded ? 'turned' : ''} size={20}/>
     </button>
     {expanded && <div className={`answer-body${answer.isMath ? ' math-answer' : ''}`}>
       {answer.isMath ? <>
@@ -74,10 +74,10 @@ async function readPdf(file) {
   return text;
 }
 
-async function downloadPdf({ title, answers, revision }) {
+async function downloadPdf({ title, answers, revision, videoNotes }) {
   const response = await fetch('/api/generate-pdf', {
     method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ title, answers, revision }), signal: AbortSignal.timeout(60_000)
+    body: JSON.stringify({ title, answers, revision, videoNotes }), signal: AbortSignal.timeout(60_000)
   });
   if (!response.ok) {
     const raw = await response.text();
@@ -97,6 +97,10 @@ async function downloadPdf({ title, answers, revision }) {
 
 export default function App() {
   const [questions, setQuestions] = useState('');
+  const [sourceType, setSourceType] = useState('questions');
+  const [youtubeUrl, setYoutubeUrl] = useState('');
+  const [resultSource, setResultSource] = useState('questions');
+  const [resultNotice, setResultNotice] = useState('');
   const [mode, setMode] = useState('5');
   const [answers, setAnswers] = useState([]);
   const [subject, setSubject] = useState('');
@@ -118,15 +122,18 @@ export default function App() {
   };
 
   const generate = async () => {
-    if (!questions.trim()) { setError('Paste your questions or upload a PDF to get started.'); return; }
-    if (questionCount > 5) { setError('This looks like ' + questionCount + ' questions. Please keep each batch to 5 or fewer for better answers.'); return; }
-    setLoading(true); setError('');
+    if (sourceType === 'questions' && !questions.trim()) { setError('Paste your questions or upload a PDF to get started.'); return; }
+    if (sourceType === 'youtube' && !youtubeUrl.trim()) { setError('Paste a YouTube video link first.'); return; }
+    if (sourceType === 'questions' && questionCount > 5) { setError('This looks like ' + questionCount + ' questions. Please keep each batch to 5 or fewer for better answers.'); return; }
+    setLoading(true); setError(''); setResultNotice('');
     try {
-      const response = await fetch('/api/generate-answers', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ questions: questions.trim(), mode }) });
+      const isYoutube = sourceType === 'youtube';
+      const response = await fetch(isYoutube ? '/api/youtube-notes' : '/api/generate-answers', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(isYoutube ? { url: youtubeUrl.trim(), mode } : { questions: questions.trim(), mode }) });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'Could not prepare answers. Try again.');
-      setSubject(payload.subject || 'Exam answers'); setAnswers(payload.answers || []); setOpenIndex(0);
-      trackEvent('answers_generated', { marks_mode: mode, answer_count: payload.answers?.length || 0 });
+      setSubject(payload.subject || (isYoutube ? 'Video study notes' : 'Exam answers')); setAnswers(payload.answers || []); setResultSource(isYoutube ? 'youtube' : 'questions'); setOpenIndex(0);
+      trackEvent(isYoutube ? 'youtube_notes_generated' : 'answers_generated', { marks_mode: mode, answer_count: payload.answers?.length || 0 });
+      setResultNotice(payload.truncated ? 'This video was long, so notes use the first part of its transcript.' : '');
       setTimeout(() => document.querySelector('#results')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
     } catch (e) { setError(e.message || 'Could not prepare answers. Try again.'); }
     finally { setLoading(false); }
@@ -135,7 +142,7 @@ export default function App() {
   const exportPdf = async revision => {
     if (!answers.length) return;
     setPdfBusy(true); setPdfError('');
-    try { await downloadPdf({ title: subject, answers, revision }); trackEvent(revision ? 'revision_pdf_downloaded' : 'answers_pdf_downloaded'); }
+    try { await downloadPdf({ title: subject, answers, revision, videoNotes: resultSource === 'youtube' }); trackEvent(revision ? 'revision_pdf_downloaded' : 'answers_pdf_downloaded'); }
     catch (exportError) { console.error('[pdf-export]', exportError); setPdfError(exportError.name === 'TimeoutError' ? 'PDF generation took too long. Please try again.' : exportError.message || 'Could not create the PDF. Please try again.'); }
     finally { setPdfBusy(false); }
   };
@@ -147,19 +154,31 @@ export default function App() {
       <p>No notes. No wasting time. Only what gets marks.</p>
     </section>
     <section className="input-panel" aria-label="Question input">
-      <label htmlFor="questions">Upload important questions</label>
-      <p className="field-hint">Paste up to 5 questions, one per line or numbered, or upload a PDF with selectable text.</p>
-      <textarea id="questions" value={questions} onChange={e => { setQuestions(e.target.value); setFileName(''); }} placeholder={'Paste one or more questions here…\n\nExample: Explain the OSI reference model.'} maxLength={16000}/>
-      <div className="input-actions"><button className="upload-button" onClick={() => fileInput.current?.click()}><Upload size={17}/> Upload PDF</button><input ref={fileInput} type="file" accept="application/pdf,.pdf" onChange={chooseFile} hidden/><span>{fileName ? `${fileName} · ${questionCount} questions extracted` : `${questionCount} / 5 questions · ${questions.length.toLocaleString()} / 16,000 characters`}</span></div>
+      <div className="source-switch" role="tablist" aria-label="Choose your source">
+        <button type="button" role="tab" aria-selected={sourceType === 'questions'} className={sourceType === 'questions' ? 'selected' : ''} onClick={() => { setSourceType('questions'); setError(''); }}>Questions / PDF</button>
+        <button type="button" role="tab" aria-selected={sourceType === 'youtube'} className={sourceType === 'youtube' ? 'selected' : ''} onClick={() => { setSourceType('youtube'); setError(''); }}>YouTube video</button>
+      </div>
+      {sourceType === 'questions' ? <>
+        <label htmlFor="questions">Upload important questions</label>
+        <p className="field-hint">Paste up to 5 questions, one per line or numbered, or upload a PDF with selectable text.</p>
+        <textarea id="questions" value={questions} onChange={e => { setQuestions(e.target.value); setFileName(''); }} placeholder={'Paste one or more questions here…\n\nExample: Explain the OSI reference model.'} maxLength={16000}/>
+        <div className="input-actions"><button className="upload-button" onClick={() => fileInput.current?.click()}><Upload size={17}/> Upload PDF</button><input ref={fileInput} type="file" accept="application/pdf,.pdf" onChange={chooseFile} hidden/><span>{fileName ? `${fileName} · ${questionCount} questions extracted` : `${questionCount} / 5 questions · ${questions.length.toLocaleString()} / 16,000 characters`}</span></div>
+      </> : <>
+        <label htmlFor="youtube-url">Turn a YouTube lesson into notes</label>
+        <p className="field-hint">Paste a public video link. It needs captions or a transcript to be available.</p>
+        <input className="youtube-input" id="youtube-url" type="url" value={youtubeUrl} onChange={e => setYoutubeUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=…" autoComplete="url" />
+        <p className="youtube-hint">We use the video captions to make your study notes. Private videos and videos without captions won’t work.</p>
+      </>}
       <div className="mode-label">CHOOSE YOUR ANSWER STYLE</div>
       <div className="mode-options">{[['5','5 Marks','Focused answer, key steps and examples'],['10','10 Marks','Full explanation, about 2-3 handwritten pages']].map(([value,title,desc]) => <button key={value} onClick={() => setMode(value)} className={`mode-option ${mode===value?'active':''}`} aria-pressed={mode===value}><span className="mode-dot"/><span><b>{title}</b><small>{desc}</small></span></button>)}</div>
-      <button className="generate-button" onClick={generate} disabled={loading}>{loading ? <><LoaderCircle className="spin" size={18}/> Preparing your answers…</> : <><Sparkles size={18}/> Generate Handwritten Answers</>}</button>
+      <button className="generate-button" onClick={generate} disabled={loading}>{loading ? <><LoaderCircle className="spin" size={18}/> {sourceType === 'youtube' ? 'Reading video captions…' : 'Preparing your answers…'}</> : <><Sparkles size={18}/> {sourceType === 'youtube' ? 'Generate Video Notes' : 'Generate Handwritten Answers'}</>}</button>
       {error && <p className="error-message" role="alert">{error}</p>}
       <p className="privacy-note">Your answers are prepared securely. Never paste passwords or private information.</p>
     </section>
 
-    {answers.length > 0 && <section className="results" id="results"><div className="results-heading"><div><span className="section-kicker">YOUR EXAM ANSWERS</span><h2>{subject}</h2><p>{answers.length} ready-to-review {answers.length === 1 ? 'answer' : 'answers'}</p></div><FileText size={32}/></div>
-      <div className="answers-list">{answers.map((answer, index) => <AnswerItem key={`${index}-${answer.question}`} answer={answer} index={index} expanded={openIndex===index} onToggle={() => setOpenIndex(openIndex===index ? -1 : index)}/>)}</div>
+    {answers.length > 0 && <section className="results" id="results"><div className="results-heading"><div><span className="section-kicker">{resultSource === 'youtube' ? 'YOUR VIDEO STUDY NOTES' : 'YOUR EXAM ANSWERS'}</span><h2>{subject}</h2><p>{resultSource === 'youtube' ? 'Notes prepared from the video captions' : `${answers.length} ready-to-review ${answers.length === 1 ? 'answer' : 'answers'}`}</p></div><FileText size={32}/></div>
+      {resultNotice && <p className="video-notice">{resultNotice}</p>}
+      <div className="answers-list">{answers.map((answer, index) => <AnswerItem key={`${index}-${answer.question}`} answer={answer} index={index} expanded={openIndex===index} onToggle={() => setOpenIndex(openIndex===index ? -1 : index)} videoNotes={resultSource === 'youtube'}/>)}</div>
       <div className="download-area"><span className="section-kicker">TAKE YOUR NOTES WITH YOU</span><h2>Ready to write.</h2><p>Notebook-style pages with clear headings and key terms.</p><div className="download-actions"><button className="download-primary" disabled={pdfBusy} onClick={() => exportPdf(false)}><Download size={17}/>{pdfBusy ? 'Creating PDF…' : 'Download Handwritten PDF'}</button><button className="download-secondary" disabled={pdfBusy} onClick={() => exportPdf(true)}><FileText size={17}/>{pdfBusy ? 'Creating PDF…' : '1-Page Revision PDF'}</button></div>{pdfError && <p className="error-message pdf-error" role="alert">{pdfError}</p>}</div>
     </section>}
     {loading && <div className="loading-note"><LoaderCircle className="spin" size={18}/> Turning your questions into scoring answers…</div>}

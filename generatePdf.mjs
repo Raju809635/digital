@@ -220,6 +220,7 @@ function drawTopicDiagram(doc, answer, x, y, width) {
 export default function generatePDF(data, fileName, options = {}) {
   const answers = normalizeAnswers(data);
   const revision = Boolean(options.revision);
+  const videoNotes = Boolean(options.videoNotes);
   let regularFont; let boldFont;
   try { regularFont = fontPath('Kalam-Regular.ttf'); boldFont = fontPath('Kalam-Bold.ttf'); }
   catch (error) { return Promise.reject(error); }
@@ -287,7 +288,7 @@ export default function generatePDF(data, fileName, options = {}) {
     answers.forEach((answer, index) => {
       if (!revision) ensureRoom(100);
       const question = revision ? `${answer.question.slice(0, 130)}${answer.question.length > 130 ? '...' : ''}` : answer.question;
-      doc.font('KalamBold').fontSize(revision ? 12.5 : 17).fillColor(accents.Keywords).text(`Q${index + 1}. `, { continued: true });
+      doc.font('KalamBold').fontSize(revision ? 12.5 : 17).fillColor(accents.Keywords).text(videoNotes ? 'VIDEO NOTES: ' : `Q${index + 1}. `, { continued: true });
       doc.font('KalamBold').fillColor(blue).text(question, { width: textWidth, lineGap: revision ? 1 : 3 });
       if (revision) {
         if (answer.isMath) {

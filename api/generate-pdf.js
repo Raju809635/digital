@@ -9,7 +9,7 @@ export default async function handler(request, response) {
   if (!Array.isArray(answers) || !answers.length) return response.status(400).json({ error: 'There are no answers to download.' });
   if (answers.length > 5) return response.status(400).json({ error: 'Download up to 5 answers at a time.' });
   try {
-    const pdf = await generatePDF({ title: title || subject || 'Exam Answer Notes', answers }, undefined, { revision: Boolean(revision) });
+    const pdf = await generatePDF({ title: title || subject || 'Exam Answer Notes', answers }, undefined, { revision: Boolean(revision), videoNotes: Boolean(request.body?.videoNotes) });
     const filename = revision ? 'digital-orbit-revision.pdf' : 'digital-orbit-handwritten-answers.pdf';
     response.setHeader('Content-Type', 'application/pdf');
     response.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
