@@ -260,6 +260,26 @@ export default function generatePDF(data, fileName, options = {}) {
     const paragraph = (text, size = 13.5, color = blue) => {
       if (text) doc.font('Kalam').fontSize(size).fillColor(color).text(text, { width: textWidth, lineGap: 4, paragraphGap: 3 });
     };
+    const mathParagraph = (text, color = '#173F83') => {
+      for (const rawLine of String(text || '').split(/\r?\n/).map(line => line.trim()).filter(Boolean)) {
+        const formula = /^(?:formula|equation)\s*:/i.test(rawLine) || /(?:=|\b(?:integral|sum from)\b|\b(?:d|partial)\w*\s*\/)/i.test(rawLine);
+        const line = rawLine.replace(/^(?:formula|equation)\s*:\s*/i, '');
+        if (formula) {
+          doc.font('Courier').fontSize(10.5);
+          const lineHeight = doc.heightOfString(line, { width: textWidth - 10, lineGap: 3 });
+          ensureRoom(lineHeight + 10);
+          const y = doc.y;
+          doc.save().roundedRect(doc.page.margins.left - 5, y - 2, textWidth + 10, lineHeight + 8, 3).fill('#EEF4FB').restore();
+          doc.fillColor(color).text(line, doc.page.margins.left + 5, y + 2, { width: textWidth - 10, lineGap: 3 });
+          doc.moveDown(0.2);
+        } else {
+          doc.font('Helvetica').fontSize(11.5).fillColor('#26384F');
+          ensureRoom(doc.heightOfString(line, { width: textWidth, lineGap: 4 }) + 8);
+          doc.text(line, { width: textWidth, lineGap: 4 });
+          doc.moveDown(0.16);
+        }
+      }
+    };
 
     doc.font('KalamBold').fontSize(revision ? 17 : 21).fillColor(blue)
       .text(normalizePdfText(revision ? 'One-page revision' : data.title || data.subject || 'Exam Answer Notes'), { width: textWidth, align: 'center' });
@@ -279,8 +299,8 @@ export default function generatePDF(data, fileName, options = {}) {
         doc.moveDown(0.18); return;
       }
       if (answer.isMath) {
-        if (answer.explanation) { heading('Worked Solution'); paragraph(answer.explanation, 13.5, blue); }
-        if (answer.conclusion) { heading('Final Answer'); paragraph(answer.conclusion, 14, accents['Final Answer']); }
+        if (answer.explanation) { heading('Worked Solution'); mathParagraph(answer.explanation); }
+        if (answer.conclusion) { heading('Final Answer'); mathParagraph(answer.conclusion, accents['Final Answer']); }
         doc.moveDown(0.65);
         return;
       }

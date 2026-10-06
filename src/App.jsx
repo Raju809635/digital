@@ -17,7 +17,7 @@ function AnswerItem({ answer, index, expanded, onToggle }) {
     <button className="answer-toggle" onClick={onToggle} aria-expanded={expanded}>
       <span><small>QUESTION {String(index + 1).padStart(2, '0')}</small>{answer.question}</span><ChevronDown className={expanded ? 'turned' : ''} size={20}/>
     </button>
-    {expanded && <div className="answer-body">
+    {expanded && <div className={`answer-body${answer.isMath ? ' math-answer' : ''}`}>
       {answer.isMath ? <>
         <h3>Worked solution</h3><p className="solution-text">{answer.explanation}</p>
         {answer.conclusion && <><h3>Final answer</h3><p className="solution-text">{answer.conclusion}</p></>}

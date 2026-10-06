@@ -43,4 +43,5 @@ body{background:#fff;color:#202720}
 footer{color:#738077}
 footer span{color:#287443}
 .solution-text{white-space:pre-line}
+.math-answer{font-family:Arial,Helvetica,sans-serif;background:#f2f6fc;color:#1d3555;border-left:3px solid #4c74ad;padding:14px 16px;line-height:1.8;border-radius:0 7px 7px 0}.math-answer h3{font:700 14px Arial,Helvetica,sans-serif;text-decoration:none;color:#315d91;margin:14px 0 6px}.math-answer .solution-text{font-family:ui-monospace,'Cascadia Mono',Consolas,monospace;font-size:13px;line-height:1.9;overflow-wrap:anywhere;color:#183b68}.math-answer .listen-button{font-family:'DM Sans',sans-serif}
 @media(max-width:600px){.input-actions span{max-width:58%;text-align:right;line-height:1.5}.mode-options{grid-template-columns:1fr 1fr}.mode-option{gap:8px;padding:11px 9px}.mode-option small{font-size:11px}}
