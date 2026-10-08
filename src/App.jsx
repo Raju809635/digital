@@ -3,6 +3,7 @@ import { upload } from '@vercel/blob/client';
 import { ChevronDown, FileText, LoaderCircle, Play, Pause, Upload, Download, Sparkles, Volume2 } from 'lucide-react';
 import { countExamQuestions } from '../lib/format.js';
 import { trackEvent } from './analytics.js';
+import AdSenseUnit from './AdSenseUnit.jsx';
 
 function AnswerItem({ answer, index, expanded, onToggle, videoNotes = false }) {
   const [speaking, setSpeaking] = useState(false);
@@ -224,6 +225,7 @@ export default function App() {
       <div className="download-area"><span className="section-kicker">TAKE YOUR NOTES WITH YOU</span><h2>Ready to write.</h2><p>Notebook-style pages with clear headings and key terms.</p><div className="download-actions"><button className="download-primary" disabled={pdfBusy} onClick={() => exportPdf(false)}><Download size={17}/>{pdfBusy ? 'Creating PDF…' : 'Download Handwritten PDF'}</button><button className="download-secondary" disabled={pdfBusy} onClick={() => exportPdf(true)}><FileText size={17}/>{pdfBusy ? 'Creating PDF…' : '1-Page Revision PDF'}</button></div>{pdfError && <p className="error-message pdf-error" role="alert">{pdfError}</p>}</div>
     </section>}
     {loading && <div className="loading-note"><LoaderCircle className="spin" size={18}/> {loadingLabel || 'Preparing your study notes…'}</div>}
+    <AdSenseUnit />
     <footer>Digital Orbit <span>·</span> Make tonight count.</footer>
   </main>;
 }

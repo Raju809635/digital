@@ -58,5 +58,7 @@ footer span{color:#287443}
 .media-picker .upload-button{flex:none}
 .upload-progress{height:5px;background:#dce8de;border-radius:9px;overflow:hidden;margin-top:12px}
 .upload-progress span{display:block;height:100%;background:#287443;transition:width .2s ease}
+.adsense-placement{width:100%;max-width:890px;min-height:90px;margin:26px auto 0;overflow:hidden}
+.adsense-placement .adsbygoogle{width:100%;min-height:90px}
 @media(max-width:600px){.source-switch{display:flex;width:100%}.source-switch button{flex:1;padding:10px 8px}.youtube-input{font-size:14px}}
 @media(max-width:600px){.media-picker{align-items:flex-start;flex-direction:column;gap:8px}.media-picker span{text-align:left}}
