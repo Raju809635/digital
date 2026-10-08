@@ -1,7 +1,7 @@
 ﻿# Digital Orbit
 ## Student User Manual
 
-Digital Orbit turns up to five exam questions into focused exam-style answers. Use the white page to paste questions or upload a PDF with selectable text, then choose the marks target.
+Digital Orbit turns up to five exam questions into focused exam-style answers. Paste questions, upload a question-paper PDF, or upload lesson audio/video to make study notes, then choose the marks target.
 
 ## Start an answer set
 
@@ -23,6 +23,10 @@ Answers are AI-generated study material. Check formulas, examples, and syllabus-
 Select **Upload PDF**. The app extracts selectable text and arranges it by the text's position on each page, then places the extracted text in the editable question box. Review it before generating answers.
 
 PDF uploads are limited to 12 MB and 30 pages. Scanned/image-only PDFs do not contain selectable text, so they cannot be read yet; paste the questions manually in that case.
+
+## Make notes from lesson audio or video
+
+Choose **Audio / Video**, select an audio or video file, choose 5 or 10 marks, and select **Transcribe & Make Notes**. Captions are not needed; the app transcribes speech from the uploaded file. Uploads are limited to 25 MB. You can also use a YouTube link when the video has captions the app can access.
 
 ## Download
 

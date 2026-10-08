@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@vercel/blob": "^2.8.1",
     "@vitejs/plugin-react": "latest",
     "framer-motion": "latest",
     "lucide-react": "latest",

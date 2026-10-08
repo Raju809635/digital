@@ -6,6 +6,8 @@ import { generateAnswers } from '../lib/groq.js';
 import generatePDF from '../generatePdf.mjs';
 import { countExamQuestions } from '../lib/format.js';
 import { getYouTubeTranscript } from '../lib/youtube.js';
+import uploadMediaHandler from '../api/upload-media.js';
+import transcribeMediaHandler from '../api/transcribe-media.js';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const dev = process.argv.includes('--dev');
@@ -20,6 +22,14 @@ async function loadEnv() {
   } catch (error) { if (error.code !== 'ENOENT') throw error; }
 }
 function send(res, status, payload) { res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }); res.end(JSON.stringify(payload)); }
+function apiResponse(res) {
+  let status = 200;
+  return {
+    setHeader: (name, value) => res.setHeader(name, value),
+    status(code) { status = code; return this; },
+    json(payload) { send(res, status, payload); return res; }
+  };
+}
 async function bodyJson(req, maxSize = 24_000) {
   let raw = '';
   for await (const chunk of req) { raw += chunk; if (raw.length > maxSize) throw Object.assign(new Error('Request is too large.'), { status: 413 }); }
@@ -32,6 +42,14 @@ const server = createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
   if (url.pathname.startsWith('/api/')) {
     if (req.method === 'GET' && url.pathname === '/api/health') return send(res, 200, { ok: true });
+    if (req.method === 'POST' && url.pathname === '/api/upload-media') {
+      try { req.body = await bodyJson(req, 30_000); return await uploadMediaHandler(req, apiResponse(res)); }
+      catch (error) { return send(res, error.status || 400, { error: error.message || 'Could not prepare the secure upload.' }); }
+    }
+    if (req.method === 'POST' && url.pathname === '/api/transcribe-media') {
+      try { req.body = await bodyJson(req, 4_000); return await transcribeMediaHandler(req, apiResponse(res)); }
+      catch (error) { return send(res, error.status || 400, { error: error.message || 'Could not transcribe this file.' }); }
+    }
     if (req.method === 'POST' && url.pathname === '/api/generate-pdf') {
       try {
         const input = await bodyJson(req, 250_000);

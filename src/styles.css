@@ -53,4 +53,10 @@ footer span{color:#287443}
 .youtube-input::placeholder{color:#8b958d}
 .youtube-hint{margin:10px 0 24px;color:#69746c;font-size:12px;line-height:1.5}
 .video-notice{padding:10px 12px;border-left:3px solid #b26a24;background:#fff7eb;color:#744818;font-size:13px}
+.media-picker{display:flex;align-items:center;justify-content:space-between;gap:14px;min-height:60px;padding:12px 14px;border:1px dashed #aebbb1;border-radius:9px;background:#fff}
+.media-picker span{color:#657168;font-size:12px;line-height:1.5;text-align:right;overflow-wrap:anywhere}
+.media-picker .upload-button{flex:none}
+.upload-progress{height:5px;background:#dce8de;border-radius:9px;overflow:hidden;margin-top:12px}
+.upload-progress span{display:block;height:100%;background:#287443;transition:width .2s ease}
 @media(max-width:600px){.source-switch{display:flex;width:100%}.source-switch button{flex:1;padding:10px 8px}.youtube-input{font-size:14px}}
+@media(max-width:600px){.media-picker{align-items:flex-start;flex-direction:column;gap:8px}.media-picker span{text-align:left}}

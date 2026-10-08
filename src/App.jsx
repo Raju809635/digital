@@ -1,4 +1,5 @@
-﻿import { useRef, useState } from 'react';
+import { useRef, useState } from 'react';
+import { upload } from '@vercel/blob/client';
 import { ChevronDown, FileText, LoaderCircle, Play, Pause, Upload, Download, Sparkles, Volume2 } from 'lucide-react';
 import { countExamQuestions } from '../lib/format.js';
 import { trackEvent } from './analytics.js';
@@ -99,6 +100,9 @@ export default function App() {
   const [questions, setQuestions] = useState('');
   const [sourceType, setSourceType] = useState('questions');
   const [youtubeUrl, setYoutubeUrl] = useState('');
+  const [mediaFile, setMediaFile] = useState(null);
+  const [mediaProgress, setMediaProgress] = useState(0);
+  const [loadingLabel, setLoadingLabel] = useState('');
   const [resultSource, setResultSource] = useState('questions');
   const [resultNotice, setResultNotice] = useState('');
   const [mode, setMode] = useState('5');
@@ -111,6 +115,7 @@ export default function App() {
   const [fileName, setFileName] = useState('');
   const [error, setError] = useState('');
   const fileInput = useRef(null);
+  const mediaInput = useRef(null);
   const questionCount = countExamQuestions(questions);
 
   const chooseFile = async event => {
@@ -121,22 +126,48 @@ export default function App() {
     event.target.value = '';
   };
 
+  const chooseMedia = event => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setError('');
+    const accepted = ['audio/flac', 'audio/mpeg', 'audio/mp4', 'audio/ogg', 'audio/wav', 'audio/webm', 'audio/x-flac', 'audio/x-wav', 'video/mp4', 'video/webm', 'video/mpeg'];
+    if (!accepted.includes(file.type.toLowerCase())) setError('Choose an MP3, M4A, WAV, OGG, FLAC, WebM, or MP4 file.');
+    else if (file.size > 25 * 1024 * 1024) setError('Audio and video uploads must be 25 MB or smaller.');
+    else setMediaFile(file);
+    event.target.value = '';
+  };
+
   const generate = async () => {
     if (sourceType === 'questions' && !questions.trim()) { setError('Paste your questions or upload a PDF to get started.'); return; }
     if (sourceType === 'youtube' && !youtubeUrl.trim()) { setError('Paste a YouTube video link first.'); return; }
+    if (sourceType === 'media' && !mediaFile) { setError('Choose an audio or video file first.'); return; }
     if (sourceType === 'questions' && questionCount > 5) { setError('This looks like ' + questionCount + ' questions. Please keep each batch to 5 or fewer for better answers.'); return; }
-    setLoading(true); setError(''); setResultNotice('');
+    setLoading(true); setError(''); setResultNotice(''); setMediaProgress(0);
     try {
       const isYoutube = sourceType === 'youtube';
-      const response = await fetch(isYoutube ? '/api/youtube-notes' : '/api/generate-answers', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(isYoutube ? { url: youtubeUrl.trim(), mode } : { questions: questions.trim(), mode }) });
+      const isMedia = sourceType === 'media';
+      let requestUrl = isYoutube ? '/api/youtube-notes' : '/api/generate-answers';
+      let requestBody = isYoutube ? { url: youtubeUrl.trim(), mode } : { questions: questions.trim(), mode };
+      if (isMedia) {
+        setLoadingLabel('Uploading your file…');
+        const ext = mediaFile.name.split('.').pop()?.replace(/[^a-z0-9]/gi, '').toLowerCase() || 'media';
+        const blob = await upload(`digital-orbit-media/${crypto.randomUUID()}.${ext}`, mediaFile, {
+          access: 'private', handleUploadUrl: '/api/upload-media', maximumSizeInBytes: 25 * 1024 * 1024,
+          onUploadProgress: event => setMediaProgress(Math.round(event.percentage))
+        });
+        setLoadingLabel('Transcribing speech and making notes…');
+        requestUrl = '/api/transcribe-media';
+        requestBody = { pathname: blob.pathname, mode };
+      } else setLoadingLabel(isYoutube ? 'Reading video captions…' : 'Preparing your answers…');
+      const response = await fetch(requestUrl, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(requestBody), signal: AbortSignal.timeout(58_000) });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'Could not prepare answers. Try again.');
-      setSubject(payload.subject || (isYoutube ? 'Video study notes' : 'Exam answers')); setAnswers(payload.answers || []); setResultSource(isYoutube ? 'youtube' : 'questions'); setOpenIndex(0);
-      trackEvent(isYoutube ? 'youtube_notes_generated' : 'answers_generated', { marks_mode: mode, answer_count: payload.answers?.length || 0 });
-      setResultNotice(payload.truncated ? 'This video was long, so notes use the first part of its transcript.' : '');
+      setSubject(payload.subject || (isMedia || isYoutube ? 'Video study notes' : 'Exam answers')); setAnswers(payload.answers || []); setResultSource(isMedia ? 'media' : isYoutube ? 'youtube' : 'questions'); setOpenIndex(0);
+      trackEvent(isMedia ? 'media_notes_generated' : isYoutube ? 'youtube_notes_generated' : 'answers_generated', { marks_mode: mode, answer_count: payload.answers?.length || 0 });
+      setResultNotice(payload.truncated ? 'The transcript was long, so notes use the first part.' : '');
       setTimeout(() => document.querySelector('#results')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
     } catch (e) { setError(e.message || 'Could not prepare answers. Try again.'); }
-    finally { setLoading(false); }
+    finally { setLoading(false); setLoadingLabel(''); }
   };
 
   const exportPdf = async revision => {
@@ -157,31 +188,42 @@ export default function App() {
       <div className="source-switch" role="tablist" aria-label="Choose your source">
         <button type="button" role="tab" aria-selected={sourceType === 'questions'} className={sourceType === 'questions' ? 'selected' : ''} onClick={() => { setSourceType('questions'); setError(''); }}>Questions / PDF</button>
         <button type="button" role="tab" aria-selected={sourceType === 'youtube'} className={sourceType === 'youtube' ? 'selected' : ''} onClick={() => { setSourceType('youtube'); setError(''); }}>YouTube video</button>
+        <button type="button" role="tab" aria-selected={sourceType === 'media'} className={sourceType === 'media' ? 'selected' : ''} onClick={() => { setSourceType('media'); setError(''); }}>Audio / Video</button>
       </div>
       {sourceType === 'questions' ? <>
         <label htmlFor="questions">Upload important questions</label>
         <p className="field-hint">Paste up to 5 questions, one per line or numbered, or upload a PDF with selectable text.</p>
         <textarea id="questions" value={questions} onChange={e => { setQuestions(e.target.value); setFileName(''); }} placeholder={'Paste one or more questions here…\n\nExample: Explain the OSI reference model.'} maxLength={16000}/>
         <div className="input-actions"><button className="upload-button" onClick={() => fileInput.current?.click()}><Upload size={17}/> Upload PDF</button><input ref={fileInput} type="file" accept="application/pdf,.pdf" onChange={chooseFile} hidden/><span>{fileName ? `${fileName} · ${questionCount} questions extracted` : `${questionCount} / 5 questions · ${questions.length.toLocaleString()} / 16,000 characters`}</span></div>
-      </> : <>
+      </> : sourceType === 'youtube' ? <>
         <label htmlFor="youtube-url">Turn a YouTube lesson into notes</label>
         <p className="field-hint">Paste a public video link. It needs captions or a transcript to be available.</p>
         <input className="youtube-input" id="youtube-url" type="url" value={youtubeUrl} onChange={e => setYoutubeUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=…" autoComplete="url" />
         <p className="youtube-hint">We use the video captions to make your study notes. Private videos and videos without captions won’t work.</p>
+      </> : <>
+        <label htmlFor="lesson-media">Upload lesson audio or video</label>
+        <p className="field-hint">Captions aren’t needed. We transcribe the spoken audio in your file.</p>
+        <input ref={mediaInput} id="lesson-media" type="file" accept="audio/flac,audio/mpeg,audio/mp4,audio/ogg,audio/wav,audio/webm,audio/x-flac,audio/x-wav,video/mp4,video/webm,video/mpeg,.mp3,.m4a,.wav,.ogg,.webm,.mp4,.mpeg" onChange={chooseMedia} hidden />
+        <div className="media-picker">
+          <button type="button" className="upload-button" onClick={() => mediaInput.current?.click()}><Upload size={17}/>{mediaFile ? 'Choose a different file' : 'Choose audio or video'}</button>
+          <span>{mediaFile ? `${mediaFile.name} · ${(mediaFile.size / (1024 * 1024)).toFixed(1)} MB` : 'MP3, M4A, WAV, OGG, FLAC, WebM, or MP4 · up to 25 MB'}</span>
+        </div>
+        {loading && mediaProgress > 0 && mediaProgress < 100 && <div className="upload-progress"><span style={{ width: `${mediaProgress}%` }}/></div>}
+        <p className="youtube-hint">Your file is stored privately only while it is transcribed, then deleted.</p>
       </>}
       <div className="mode-label">CHOOSE YOUR ANSWER STYLE</div>
       <div className="mode-options">{[['5','5 Marks','Focused answer, key steps and examples'],['10','10 Marks','Full explanation, about 2-3 handwritten pages']].map(([value,title,desc]) => <button key={value} onClick={() => setMode(value)} className={`mode-option ${mode===value?'active':''}`} aria-pressed={mode===value}><span className="mode-dot"/><span><b>{title}</b><small>{desc}</small></span></button>)}</div>
-      <button className="generate-button" onClick={generate} disabled={loading}>{loading ? <><LoaderCircle className="spin" size={18}/> {sourceType === 'youtube' ? 'Reading video captions…' : 'Preparing your answers…'}</> : <><Sparkles size={18}/> {sourceType === 'youtube' ? 'Generate Video Notes' : 'Generate Handwritten Answers'}</>}</button>
+      <button className="generate-button" onClick={generate} disabled={loading}>{loading ? <><LoaderCircle className="spin" size={18}/> {loadingLabel}{sourceType === 'media' && mediaProgress > 0 && mediaProgress < 100 ? ` ${mediaProgress}%` : ''}</> : <><Sparkles size={18}/> {sourceType === 'media' ? 'Transcribe & Make Notes' : sourceType === 'youtube' ? 'Generate Video Notes' : 'Generate Handwritten Answers'}</>}</button>
       {error && <p className="error-message" role="alert">{error}</p>}
       <p className="privacy-note">Your answers are prepared securely. Never paste passwords or private information.</p>
     </section>
 
-    {answers.length > 0 && <section className="results" id="results"><div className="results-heading"><div><span className="section-kicker">{resultSource === 'youtube' ? 'YOUR VIDEO STUDY NOTES' : 'YOUR EXAM ANSWERS'}</span><h2>{subject}</h2><p>{resultSource === 'youtube' ? 'Notes prepared from the video captions' : `${answers.length} ready-to-review ${answers.length === 1 ? 'answer' : 'answers'}`}</p></div><FileText size={32}/></div>
+    {answers.length > 0 && <section className="results" id="results"><div className="results-heading"><div><span className="section-kicker">{resultSource === 'questions' ? 'YOUR EXAM ANSWERS' : 'YOUR VIDEO STUDY NOTES'}</span><h2>{subject}</h2><p>{resultSource === 'media' ? 'Notes prepared from the uploaded file’s audio' : resultSource === 'youtube' ? 'Notes prepared from the video captions' : `${answers.length} ready-to-review ${answers.length === 1 ? 'answer' : 'answers'}`}</p></div><FileText size={32}/></div>
       {resultNotice && <p className="video-notice">{resultNotice}</p>}
-      <div className="answers-list">{answers.map((answer, index) => <AnswerItem key={`${index}-${answer.question}`} answer={answer} index={index} expanded={openIndex===index} onToggle={() => setOpenIndex(openIndex===index ? -1 : index)} videoNotes={resultSource === 'youtube'}/>)}</div>
+      <div className="answers-list">{answers.map((answer, index) => <AnswerItem key={`${index}-${answer.question}`} answer={answer} index={index} expanded={openIndex===index} onToggle={() => setOpenIndex(openIndex===index ? -1 : index)} videoNotes={resultSource !== 'questions'}/>)}</div>
       <div className="download-area"><span className="section-kicker">TAKE YOUR NOTES WITH YOU</span><h2>Ready to write.</h2><p>Notebook-style pages with clear headings and key terms.</p><div className="download-actions"><button className="download-primary" disabled={pdfBusy} onClick={() => exportPdf(false)}><Download size={17}/>{pdfBusy ? 'Creating PDF…' : 'Download Handwritten PDF'}</button><button className="download-secondary" disabled={pdfBusy} onClick={() => exportPdf(true)}><FileText size={17}/>{pdfBusy ? 'Creating PDF…' : '1-Page Revision PDF'}</button></div>{pdfError && <p className="error-message pdf-error" role="alert">{pdfError}</p>}</div>
     </section>}
-    {loading && <div className="loading-note"><LoaderCircle className="spin" size={18}/> Turning your questions into scoring answers…</div>}
+    {loading && <div className="loading-note"><LoaderCircle className="spin" size={18}/> {loadingLabel || 'Preparing your study notes…'}</div>}
     <footer>Digital Orbit <span>·</span> Make tonight count.</footer>
   </main>;
 }
